@@ -1,0 +1,53 @@
+; Engine configuration file.
+; Harbor Pulse — 2D superhero action game
+config_version=5
+
+[application]
+config/name="Harbor Pulse"
+config/description="A kid-friendly 2D superhero action game set in Harbor City. Play as Sling, Titan, and Forge."
+config/version="1.0.0"
+config/tags=PackedStringArray("action", "2d", "superhero")
+run/main_scene="res://scenes/boot.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[autoload]
+Settings="*res://scripts/autoload/settings.gd"
+SaveManager="*res://scripts/autoload/save_manager.gd"
+Catalog="*res://scripts/autoload/catalog.gd"
+Art="*res://scripts/autoload/art.gd"
+AudioDirector="*res://scripts/autoload/audio_director.gd"
+Juice="*res://scripts/autoload/juice.gd"
+Game="*res://scripts/autoload/game.gd"
+
+[debug]
+file_logging/enable_file_logging=true
+
+[display]
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/vsync/vsync_mode=1
+
+[layer_names]
+2d_physics/layer_1="world"
+2d_physics/layer_2="hero"
+2d_physics/layer_3="enemy"
+2d_physics/layer_4="hitbox"
+2d_physics/layer_5="hurtbox"
+2d_physics/layer_6="pickup"
+2d_physics/layer_7="swing"
+2d_physics/layer_8="interact"
+
+[physics]
+common/physics_ticks_per_second=60
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=1
+2d/snap/snap_2d_transforms_to_pixel=false
+environment/defaults/default_clear_color=Color(0.043, 0.106, 0.2, 1)

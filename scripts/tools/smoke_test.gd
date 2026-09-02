@@ -1,0 +1,22 @@
+extends SceneTree
+
+func _init() -> void:
+	print("SMOKE: start")
+	InputSetup.ensure()
+	assert(Catalog.story_ids().size() == 12)
+	assert(Catalog.side_ids().size() == 10)
+	assert(Catalog.trial_ids().size() == 9)
+	assert(Catalog.challenge_ids().size() == 6)
+	assert(not Catalog.get_mission("s01").is_empty())
+	assert(not Catalog.get_mission("x_overload").is_empty())
+	assert(Catalog.upgrades()["sling"].size() == 5)
+	print("SMOKE: catalog ok")
+	var s := Sling.new()
+	var t := Titan.new()
+	var f := Forge.new()
+	print("SMOKE: heroes constructed")
+	s.free()
+	t.free()
+	f.free()
+	print("SMOKE: pass")
+	quit(0)

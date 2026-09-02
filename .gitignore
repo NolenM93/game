@@ -1,0 +1,17 @@
+# Godot cache (regenerated locally)
+.godot/
+*.translation
+export.cfg
+*.tmp
+*.log
+
+# Local engine, zips, and export templates — do not commit
+tools/
+
+# Exported .exe / .pck (rebuild with Godot)
+build/
+
+# OS junk
+Thumbs.db
+Desktop.ini
+.DS_Store
