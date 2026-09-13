@@ -38,7 +38,6 @@ func configure(p_kind: String, colors: Dictionary) -> void:
 	if sprite.texture == null:
 		_blob_fallback(colors)
 	if colors.has("trim") and p_kind in ["sling", "titan", "forge"]:
-		# costume tint stays subtle so painted colors survive
 		var trim: Color = colors.trim
 		if trim != Color("E23B9A") and trim != Color("6B3A12") and trim != Color("D08A3A"):
 			sprite.modulate = Color(0.92, 0.95, 1.08)
@@ -47,21 +46,31 @@ func configure(p_kind: String, colors: Dictionary) -> void:
 func _shadow() -> void:
 	shadow = Sprite2D.new()
 	shadow.texture = Art.soft_light()
-	shadow.modulate = Color(0.02, 0.03, 0.05, 0.55)
-	shadow.scale = Vector2(0.55, 0.16)
-	shadow.position = Vector2(0, foot + 10)
+	shadow.modulate = Color(0.02, 0.03, 0.05, 0.5)
+	shadow.scale = Vector2(0.62, 0.14)
+	shadow.position = Vector2(0, foot + 8)
 	shadow.z_index = -1
 	add_child(shadow)
 
 
 func _process(delta: float) -> void:
-	bob += delta * 5.5
-	var y := sin(bob) * 1.4
+	bob += delta * (7.0 if pose == "run" else 2.4)
+	var air := false
+	var vx := 0.0
+	var p := get_parent()
+	if p is CharacterBody2D:
+		air = not p.is_on_floor()
+		vx = p.velocity.x
+	var y := 0.0
+	if not air:
+		y = sin(bob) * (2.4 if pose == "run" else 0.7)
+	var lean := clampf(vx / 900.0, -0.12, 0.12)
+	rotation = lerp_angle(rotation, lean, 0.18)
 	scale = Vector2(facing * squash.x * base_scale, squash.y * base_scale)
-	position.y = lerp(position.y, y, 0.2)
+	position.y = lerp(position.y, y, 0.25)
 	if hurt_flash > 0.0:
 		hurt_flash -= delta
-		modulate = Color(1.5, 1.5, 1.5) if int(hurt_flash * 18.0) % 2 == 0 else Color.WHITE
+		modulate = Color(1.35, 0.72, 0.72)
 	else:
 		modulate = Color.WHITE
 	_update_pose()
@@ -98,11 +107,10 @@ func _fit_sprite() -> void:
 func pulse(k: float = 1.25) -> void:
 	squash = Vector2(k, 2.0 - k)
 	var tw := create_tween()
-	tw.tween_property(self, "squash", Vector2.ONE, 0.15)
+	tw.tween_property(self, "squash", Vector2.ONE, 0.12)
 
 
 func _blob_fallback(colors: Dictionary) -> void:
-	var outline: Color = colors.get("outline", Color.BLACK)
 	var body: Color = colors.get("body", Color.WHITE)
 	var poly := Polygon2D.new()
 	var pts := PackedVector2Array()
@@ -113,4 +121,3 @@ func _blob_fallback(colors: Dictionary) -> void:
 	poly.color = body
 	poly.position = Vector2(0, -8)
 	add_child(poly)
-	var _o := outline

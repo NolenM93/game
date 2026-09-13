@@ -2,10 +2,7 @@ extends Control
 
 func _ready() -> void:
 	UIKit.full_rect(self)
-	var bg := ColorRect.new()
-	bg.color = Color("0B1B33")
-	UIKit.full_rect(bg)
-	add_child(bg)
+	UIKit.art_bg(self, "bg_hub", 0.55)
 	UIKit.label(self, "UPGRADE BENCH", Vector2(80, 40), 48, UIKit.GOLD)
 	UIKit.label(self, "Spark %d" % int(SaveManager.active.get("spark", 0)), Vector2(1500, 50), 32, UIKit.GOLD)
 	var y := 120.0

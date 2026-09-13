@@ -25,9 +25,11 @@ func _kit_physics(delta: float) -> void:
 	hovering = false
 	var jump_hold := Input.is_action_pressed("jump")
 	if Input.is_action_just_pressed("jump"):
-		if not try_jump() and fuel > 0.2:
+		if Game.in_hub:
+			pass
+		elif not try_jump() and fuel > 0.2:
 			hovering = true
-	if jump_hold and not is_on_floor() and fuel > 0.0:
+	if jump_hold and not is_on_floor() and fuel > 0.0 and not Game.in_hub:
 		hovering = true
 	if hovering:
 		fuel = maxf(0.0, fuel - delta * (0.7 if has_up("overclock") else 0.95))

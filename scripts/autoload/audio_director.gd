@@ -18,13 +18,13 @@ func _ready() -> void:
 	_combat_player.bus = "Music"
 	_combat_player.volume_db = -40
 	add_child(_combat_player)
-	for i in 10:
+	for i in 16:
 		var p := AudioStreamPlayer.new()
 		p.bus = "SFX"
 		add_child(p)
 		_sfx_players.append(p)
 	_build_library()
-	play_music("title")
+	# Harbor Day starts its own music. Do not blare the 2D title loop.
 
 
 func _process(delta: float) -> void:
@@ -54,6 +54,9 @@ func play_music(id: String) -> void:
 		id = "hub"
 	_music_player.stream = _music[id]
 	_music_player.play()
+	if id == "day" or id == "arena" or id == "hollow":
+		_combat_player.stop()
+		return
 	if _music.has(id + "_combat"):
 		_combat_player.stream = _music[id + "_combat"]
 		_combat_player.play()
@@ -85,7 +88,8 @@ func _build_library() -> void:
 	_sfx["charge"] = _tone(180, 0.2, 0.25, "saw")
 	_sfx["jump"] = _tone(420, 0.1, 0.25, "sine")
 	_sfx["land"] = _tone(110, 0.08, 0.3, "sine")
-	_sfx["pickup"] = _tone(980, 0.12, 0.3, "sine")
+	_sfx["pickup"] = _arpeggio([784, 988, 1175], 0.07)
+	_sfx["yip"] = _tone(640, 0.08, 0.22, "sine")
 	_sfx["hurt"] = _tone(160, 0.2, 0.4, "square")
 	_sfx["win"] = _arpeggio([523, 659, 784, 1046], 0.12)
 	_sfx["lose"] = _arpeggio([392, 330, 262], 0.16)
@@ -95,6 +99,14 @@ func _build_library() -> void:
 	_sfx["surge"] = _tone(70, 0.3, 0.5, "saw")
 	_sfx["alarm"] = _tone(740, 0.15, 0.25, "square")
 	_sfx["boss"] = _arpeggio([110, 146, 110, 164], 0.1)
+	_sfx["shoot"] = _noise(0.08, 0.38, 2200)
+	_sfx["shotgun"] = _noise(0.14, 0.5, 700)
+	_sfx["reload"] = _tone(190, 0.11, 0.28, "square")
+	_sfx["groan"] = _tone(64, 0.42, 0.28, "saw")
+	_sfx["limb"] = _tone(280, 0.11, 0.32, "square")
+	_sfx["build"] = _tone(150, 0.1, 0.3, "sine")
+	_sfx["explode"] = _noise(0.22, 0.48, 380)
+	_sfx["wire"] = _tone(980, 0.04, 0.16, "square")
 	_music["title"] = _song([262, 330, 392, 330, 349, 392, 523, 392], 0.28, 0.18)
 	_music["hub"] = _song([196, 247, 294, 247, 220, 262, 330, 294], 0.32, 0.16)
 	_music["midtown"] = _song([220, 277, 330, 277, 246, 330, 440, 330], 0.26, 0.17)
@@ -103,6 +115,9 @@ func _build_library() -> void:
 	_music["combat"] = _song([130, 164, 196, 164, 146, 196, 261, 196], 0.16, 0.2)
 	_music["boss"] = _song([98, 123, 146, 116, 98, 130, 164, 110], 0.18, 0.22)
 	_music["credits"] = _song([261, 329, 392, 523, 392, 329, 349, 440], 0.34, 0.15)
+	_music["day"] = _song([262, 294, 330, 392, 330, 294, 247, 262], 0.48, 0.11)
+	_music["arena"] = _song([262, 330, 392, 330, 349, 392, 523, 392], 0.22, 0.16)
+	_music["hollow"] = _song([98, 116, 130, 116, 110, 98, 87, 98], 0.42, 0.14)
 
 
 func _tone(freq: float, dur: float, vol: float, wave: String) -> AudioStreamWAV:

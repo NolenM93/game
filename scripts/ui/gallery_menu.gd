@@ -2,10 +2,7 @@ extends Control
 
 func _ready() -> void:
 	UIKit.full_rect(self)
-	var bg := ColorRect.new()
-	bg.color = Color("0B1B33")
-	UIKit.full_rect(bg)
-	add_child(bg)
+	UIKit.art_bg(self, "bg_hub", 0.6)
 	UIKit.label(self, "COMIC GALLERY", Vector2(80, 30), 48, UIKit.GOLD)
 	UIKit.label(self, "%d / 30 panels   •   %d / 15 tokens" % [SaveManager.active.get("comics", []).size(), SaveManager.active.get("tokens", []).size()], Vector2(80, 90), 24, UIKit.TEAL)
 	var comics: Dictionary = Catalog.comics()

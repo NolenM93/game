@@ -1,5 +1,7 @@
 extends Node
 
+const Hollow = preload("res://scripts/hollow/hollow_world.gd")
+
+
 func _ready() -> void:
-	# Autoloads own the game. Keep this scene alive so the tree never unloads them.
-	pass
+	add_child(Hollow.new())

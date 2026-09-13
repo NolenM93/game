@@ -62,13 +62,14 @@ func _ready() -> void:
 	z_index = 10
 	floor_snap_length = 8.0
 	safe_margin = 0.2
-	var lamp := PointLight2D.new()
-	lamp.texture = Art.soft_light()
-	lamp.energy = 0.55
-	lamp.color = Color(1.0, 0.93, 0.82)
-	lamp.texture_scale = 2.4
-	add_child(lamp)
-	tutorial.emit("move", "Left stick move  •  A jump  •  X attack")
+	if not Game.in_hub:
+		var lamp := PointLight2D.new()
+		lamp.texture = Art.soft_light()
+		lamp.energy = 0.28
+		lamp.color = Color(1.0, 0.93, 0.82)
+		lamp.texture_scale = 1.6
+		add_child(lamp)
+		tutorial.emit("move", "Left stick move  •  A jump  •  X attack")
 
 
 func _apply_difficulty() -> void:
@@ -109,6 +110,9 @@ func _physics_process(delta: float) -> void:
 		if not was_floor:
 			cam.land()
 			AudioDirector.play("land", 0.9)
+			if actor:
+				actor.pulse(1.12)
+			VFX.dust(get_parent(), global_position + Vector2(0, actor.foot if actor else 20))
 			if has_up("smash_armor"):
 				armor = maxf(armor, 0.25)
 		dare_air = 0.0
@@ -119,7 +123,9 @@ func _physics_process(delta: float) -> void:
 			bump_stat("no_ground")
 			dare_air = 0.0
 	was_floor = is_on_floor()
-	if Input.is_action_just_pressed("jump"):
+	if Game.in_hub:
+		jump_buf = 0.0
+	elif Input.is_action_just_pressed("jump"):
 		if Game.consume_hub_interact():
 			jump_buf = 0.0
 		else:
@@ -127,10 +133,13 @@ func _physics_process(delta: float) -> void:
 	else:
 		jump_buf = maxf(0.0, jump_buf - delta)
 	_update_aim()
-	if Input.is_action_just_pressed("lockon"):
+	if not Game.in_hub and Input.is_action_just_pressed("lockon"):
 		_cycle_lock()
 		tutorial.emit("lockon", "RB cycles a target. Yellow ring = lock-on.")
 	_kit_physics(delta)
+	if not Game.in_hub and not is_on_floor() and velocity.y < 0.0 and not Input.is_action_pressed("jump"):
+		if not (self is Forge and (self as Forge).hovering):
+			velocity.y += gravity * 1.55 * delta
 	move_and_slide()
 	_kit_after(delta)
 	if actor:
@@ -193,7 +202,7 @@ func _kit_after(_delta: float) -> void:
 
 
 func try_jump() -> bool:
-	if Game.consume_hub_interact():
+	if Game.in_hub or Game.consume_hub_interact():
 		jump_buf = 0.0
 		return false
 	if jump_buf > 0.0 and coyote > 0.0:
@@ -207,7 +216,7 @@ func try_jump() -> bool:
 	return false
 
 
-func apply_move(delta: float, speed: float, accel: float = 2400.0) -> void:
+func apply_move(delta: float, speed: float, accel: float = 3200.0) -> void:
 	var x := Input.get_axis("move_left", "move_right")
 	var target := x * speed
 	velocity.x = move_toward(velocity.x, target, accel * delta)
@@ -223,7 +232,11 @@ func spawn_hit(size: Vector2, offset: Vector2, dmg: int, knock: float, stun_t: f
 	h.setup(self, data, size * k, extra.get("ttl", 0.12))
 	add_child(h)
 	h.position = offset * k
-	Juice.punch(4.0)
+	Juice.punch(5.5)
+	Juice.hitstop(0.02)
+	if actor:
+		actor.pulse(0.86)
+	VFX.slash(get_parent(), global_position + offset * k, facing, extra.get("color", Color("F3E6D0")))
 	AudioDirector.play(extra.get("sfx", "hit"))
 	bump_stat("hits")
 

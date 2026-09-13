@@ -1,19 +1,28 @@
 extends Control
 
 var kind := "story"
-var pending: Dictionary = {}
 
 
 func setup(p_kind: String) -> void:
 	kind = p_kind
+	for c in get_children():
+		c.queue_free()
 	UIKit.full_rect(self)
-	var bg := ColorRect.new()
-	bg.color = Color("0B1B33")
-	UIKit.full_rect(bg)
-	add_child(bg)
-	var titles := {"story": "STORY BOARD", "side": "SIDE BOARD", "trial": "HERO TRIALS", "challenge": "CHALLENGE BOARD", "secret": "SECRET"}
-	UIKit.label(self, titles.get(kind, "BOARD"), Vector2(80, 40), 52, UIKit.GOLD)
-	UIKit.label(self, "A select   B back   Gold = recommended hero bonus", Vector2(80, 100), 22, Color(1, 1, 1, 0.65))
+	UIKit.art_bg(self, "bg_midtown", 0.62)
+	var titles := {"story": "STORY", "side": "SIDE JOBS", "trial": "TRIALS", "challenge": "CHALLENGES", "secret": "SECRET"}
+	UIKit.label(self, titles.get(kind, "BOARD"), Vector2(72, 36), 48, UIKit.GOLD, true)
+	UIKit.label(self, "A select     B back     Gold hero = bonus Spark", Vector2(72, 96), 20, Color(1, 1, 1, 0.6))
+	var tabs := [["story", "Story"], ["side", "Side"], ["trial", "Trials"], ["challenge", "Challenges"]]
+	var tx := 72.0
+	for t in tabs:
+		var tb := UIKit.button(self, t[1], Rect2(tx, 130, 200, 48))
+		if t[0] == kind:
+			tb.modulate = Color(1.15, 1.05, 0.8)
+		var kid: String = t[0]
+		tb.pressed.connect(func(): Game.show_board(kid))
+		tx += 214.0
+	var back := UIKit.button(self, "Back to HQ", Rect2(1520, 36, 320, 52))
+	back.pressed.connect(func(): Game.show_hub())
 	var ids: PackedStringArray
 	match kind:
 		"side":
@@ -33,12 +42,12 @@ func setup(p_kind: String) -> void:
 		var cleared := id in SaveManager.active.get("cleared", [])
 		var rank := str(SaveManager.active.get("ranks", {}).get(id, ""))
 		var star := bool(SaveManager.active.get("stars", {}).get(id, false))
-		var label := m.title
+		var label := str(m.title)
 		if not unlocked:
-			label = "???"
+			label = "Locked"
 		elif cleared:
-			label = "%s  [%s]%s" % [m.title, rank if rank != "" else "C", " ★" if star else ""]
-		var b := UIKit.button(self, label, Rect2(80 + col * 620, 150 + row * 90, 580, 72))
+			label = "%s   [%s]%s" % [m.title, rank if rank != "" else "C", "  ★" if star else ""]
+		var b := UIKit.button(self, label, Rect2(72 + col * 620, 210 + row * 88, 580, 72))
 		b.disabled = not unlocked
 		if unlocked:
 			var mid := id
@@ -50,10 +59,8 @@ func setup(p_kind: String) -> void:
 			col = 0
 			row += 1
 	if kind == "side" and Catalog.is_unlocked("x_overload"):
-		var ob := UIKit.button(self, "OVERLOAD  (secret boss)", Rect2(80, 960, 580, 64))
+		var ob := UIKit.button(self, "OVERLOAD   secret boss", Rect2(72, 980, 580, 60))
 		ob.pressed.connect(func(): _pick("x_overload"))
-	var back := UIKit.button(self, "Back to HQ", Rect2(1500, 40, 320, 56))
-	back.pressed.connect(func(): Game.show_hub())
 	if first:
 		first.grab_focus()
 	else:

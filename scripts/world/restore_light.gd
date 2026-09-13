@@ -3,8 +3,7 @@ extends Area2D
 
 var index := 0
 var on := false
-var vis: ColorRect
-var label: Label
+var glow: Sprite2D
 
 
 func build() -> void:
@@ -14,18 +13,14 @@ func build() -> void:
 	monitoring = true
 	var cs := CollisionShape2D.new()
 	var r := RectangleShape2D.new()
-	r.size = Vector2(36, 64)
+	r.size = Vector2(40, 70)
 	cs.shape = r
 	add_child(cs)
-	vis = ColorRect.new()
-	vis.size = Vector2(28, 56)
-	vis.position = Vector2(-14, -28)
-	vis.color = Color("243056")
-	add_child(vis)
-	label = Label.new()
-	label.text = str(index + 1)
-	label.position = Vector2(-8, -48)
-	add_child(label)
+	glow = Sprite2D.new()
+	glow.texture = Art.soft_light()
+	glow.modulate = Color(0.22, 0.28, 0.4, 0.55)
+	glow.scale = Vector2(0.22, 0.5)
+	add_child(glow)
 	body_entered.connect(_touch)
 	area_entered.connect(_touch)
 
@@ -40,18 +35,16 @@ func _touch(n: Node) -> void:
 func try_on() -> bool:
 	if on:
 		return false
-	var ordered := false
 	for m in get_tree().get_nodes_in_group("mission_runner"):
 		if m.has_method("can_restore"):
 			if not m.can_restore(index):
-				VFX.text_pop(get_parent(), global_position, "WRONG ORDER", Color("FFAA88"))
+				VFX.text_pop(get_parent(), global_position, "Wrong order", Color("FFAA88"))
 				return false
-			ordered = true
 	on = true
-	vis.color = Color("F4C542")
+	glow.modulate = Color("E8C45ACC")
 	add_to_group("light_on")
 	AudioDirector.play("spark")
-	VFX.ring(get_parent(), global_position, Color("F4C542"), 70.0)
+	VFX.ring(get_parent(), global_position, Color("E8C45A"), 70.0)
 	for m in get_tree().get_nodes_in_group("mission_runner"):
 		if m.has_method("notify_restore"):
 			m.notify_restore(index)

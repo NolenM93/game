@@ -3,6 +3,7 @@ extends Node
 var _tex: Dictionary = {}
 var font_title: Font
 var font_body: Font
+var font_emoji: Font
 
 
 func _ready() -> void:
@@ -21,6 +22,10 @@ func _ready() -> void:
 		font_body = ms_body
 	elif ms_title:
 		font_body = ms_title
+	font_emoji = SystemFont.new()
+	font_emoji.font_names = PackedStringArray(["Segoe UI Emoji", "Segoe UI Symbol", "Segoe UI", "Apple Color Emoji", "Noto Color Emoji"])
+	_with_emoji(font_body)
+	_with_emoji(font_title)
 	var th := Theme.new()
 	th.default_font = font_body
 	th.default_font_size = 22
@@ -29,6 +34,13 @@ func _ready() -> void:
 	th.set_font("font", "RichTextLabel", font_body)
 	get_tree().root.theme = th
 	soft_light()
+
+
+func _with_emoji(f: Font) -> void:
+	if f == null or font_emoji == null:
+		return
+	if not f.fallbacks.has(font_emoji):
+		f.fallbacks.append(font_emoji)
 
 
 func combat_scale(kind: String) -> float:

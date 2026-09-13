@@ -19,8 +19,12 @@ func _ready() -> void:
 	costume = str(SaveManager.active.get("costumes_eq", {}).get("sling", "classic"))
 	super._ready()
 	ribbon = Line2D.new()
-	ribbon.width = 5.0
+	ribbon.width = 7.0
 	ribbon.default_color = Color("E23B9A")
+	ribbon.joint_mode = Line2D.LINE_JOINT_ROUND
+	ribbon.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	ribbon.end_cap_mode = Line2D.LINE_CAP_ROUND
+	ribbon.antialiased = true
 	ribbon.z_index = 8
 	add_child(ribbon)
 	tutorial.emit("sling", "Y tethers a swing point. Hold A to climb the ribbon. B wall-leaps or slams.")

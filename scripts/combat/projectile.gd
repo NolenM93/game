@@ -21,6 +21,11 @@ func _ready() -> void:
 	add_child(cs)
 	body_entered.connect(_hit)
 	area_entered.connect(_hit)
+	var glow := Sprite2D.new()
+	glow.texture = Art.soft_light()
+	glow.modulate = Color(trail_color.r, trail_color.g, trail_color.b, 0.7)
+	glow.scale = Vector2(0.14, 0.14)
+	add_child(glow)
 	z_index = 20
 
 

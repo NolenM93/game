@@ -2,10 +2,7 @@ extends Control
 
 func _ready() -> void:
 	UIKit.full_rect(self)
-	var bg := ColorRect.new()
-	bg.color = Color("070B14")
-	UIKit.full_rect(bg)
-	add_child(bg)
+	UIKit.art_bg(self, "bg_hub", 0.58)
 	UIKit.label(self, "COSTUME CLOSET", Vector2(80, 40), 48, UIKit.GOLD)
 	var x := 80.0
 	for hero in ["sling", "titan", "forge"]:

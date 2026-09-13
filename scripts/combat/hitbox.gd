@@ -25,12 +25,6 @@ func setup(p_source: Node, p_data: Dictionary, size: Vector2, p_ttl: float = 0.1
 	r.size = size
 	cs.shape = r
 	add_child(cs)
-	var vis := ColorRect.new()
-	vis.size = size
-	vis.position = -size * 0.5
-	vis.color = Color(data.get("color", Color("FFFFFFAA")))
-	vis.color.a = 0.35
-	add_child(vis)
 	z_index = 25
 
 

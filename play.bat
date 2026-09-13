@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 if exist "build\HarborPulse.exe" (
-  echo Starting Harbor Pulse...
+  echo Starting Lantern Hollow...
   start "" "build\HarborPulse.exe"
   exit /b 0
 )

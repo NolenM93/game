@@ -58,7 +58,7 @@ func _sky() -> void:
 	var veil := ColorRect.new()
 	veil.size = Vector2(length + 2400, 2200)
 	veil.position = Vector2(-600, -900)
-	veil.color = Color(pal.fog.r, pal.fog.g, pal.fog.b, 0.12)
+	veil.color = Color(pal.fog.r, pal.fog.g, pal.fog.b, 0.06)
 	veil.z_index = -20
 	add_child(veil)
 
@@ -72,7 +72,7 @@ func _parallax() -> void:
 		var s := Sprite2D.new()
 		s.texture = mid
 		s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-		s.modulate = Color(0.35, 0.38, 0.5, 0.55)
+		s.modulate = Color(0.22, 0.24, 0.32, 0.4)
 		s.centered = false
 		var sc := (420.0 + rng.randf() * 180.0) / float(mid.get_height())
 		s.scale = Vector2(sc, sc)
@@ -83,7 +83,7 @@ func _parallax() -> void:
 
 
 func _ground(x: float, w: float) -> void:
-	WorldProps.static_rect(self, Rect2(x, ground_y, w, 240), pal.ground, [], Art.ground_tex(str(def.get("district", "midtown"))))
+	WorldProps.static_rect(self, Rect2(x, ground_y, w, 240), pal.ground, [], Art.ground_tex(str(def.get("district", "midtown"))), true, 56.0)
 
 
 func _building(x: float, w: float, h: float) -> void:
@@ -155,7 +155,7 @@ func _grid() -> void:
 	var i := 0
 	while x < length - 160:
 		var h := 120.0 + (i % 4) * 70.0
-		WorldProps.static_rect(self, Rect2(x, ground_y - h, 180, h), pal.build)
+		WorldProps.building(self, Rect2(x, ground_y - h, 180, h), i % 2 == 0)
 		WorldProps.static_rect(self, Rect2(x + 40, ground_y - h - 90, 100, 16), pal.accent)
 		if "swing" in def.get("features", []) or i % 2 == 0:
 			WorldProps.swing_point(self, Vector2(x + 90, ground_y - h - 110))
@@ -163,10 +163,11 @@ func _grid() -> void:
 			if i % 2 == 1:
 				WorldProps.fuel_pad(self, Vector2(x + 90, ground_y - h - 100))
 		if "wires" in def.get("features", []) and i % 3 == 0:
-			var wire := ColorRect.new()
-			wire.size = Vector2(8, 80)
+			var wire := Sprite2D.new()
+			wire.texture = Art.soft_light()
+			wire.modulate = Color("6CF0E088")
+			wire.scale = Vector2(0.06, 0.45)
 			wire.position = Vector2(x + 20, ground_y - 80)
-			wire.color = Color("6CF0E0")
 			add_child(wire)
 		x += 240
 		i += 1
