@@ -9,6 +9,7 @@ var aim_assist: float = 0.8
 var reduced_flash: bool = false
 var large_hud: bool = false
 var invert_fly: bool = false
+var first_person: bool = false
 var fullscreen: bool = false
 var difficulty: String = "story"
 
@@ -85,6 +86,7 @@ func load_settings() -> void:
 	reduced_flash = bool(p.get_value("a", "flash", reduced_flash))
 	large_hud = bool(p.get_value("a", "hud", large_hud))
 	invert_fly = bool(p.get_value("a", "invert", invert_fly))
+	first_person = bool(p.get_value("a", "fp", first_person))
 	fullscreen = bool(p.get_value("a", "full", fullscreen))
 	difficulty = str(p.get_value("a", "diff", difficulty))
 
@@ -98,6 +100,7 @@ func save_settings() -> void:
 	p.set_value("a", "flash", reduced_flash)
 	p.set_value("a", "hud", large_hud)
 	p.set_value("a", "invert", invert_fly)
+	p.set_value("a", "fp", first_person)
 	p.set_value("a", "full", fullscreen)
 	p.set_value("a", "diff", difficulty)
 	p.save("user://settings.cfg")

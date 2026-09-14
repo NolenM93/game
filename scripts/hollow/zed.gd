@@ -9,12 +9,17 @@ var keep: Node3D
 var hunter: Node3D
 var vis: Node3D
 var core := 8
+var max_core := 8
 var speed := 2.45
+var wave := 1
+var sc := 1.0
 var chew_cd := 0.0
 var swipe_cd := 0.0
 var slow := 0.0
 var stun := 0.0
 var i_frames := 0.0
+var flash_t := 0.0
+var flash_on := false
 var crawling := false
 var dead := false
 var slam_t := 0.0
@@ -29,12 +34,19 @@ var arm_l: Node3D
 var arm_r: Node3D
 var leg_l: Node3D
 var leg_r: Node3D
+var mats: Array[StandardMaterial3D] = []
+var hp_root: Node3D
+var hp_fill: MeshInstance3D
+var hp_show := 0.0
+var wander := Vector3.ZERO
+var wander_t := 0.0
 
 
-func setup(p_kind: String, p_keep: Node3D, p_hunter: Node3D) -> void:
+func setup(p_kind: String, p_keep: Node3D, p_hunter: Node3D, p_wave: int = 1) -> void:
 	kind = p_kind
 	keep = p_keep
 	hunter = p_hunter
+	wave = maxi(1, p_wave)
 	match kind:
 		"runner":
 			core = 5
@@ -56,6 +68,10 @@ func setup(p_kind: String, p_keep: Node3D, p_hunter: Node3D) -> void:
 			speed = 2.45
 			skin = Color("6E8A4A")
 			shirt = Color("3A4630")
+	max_core = core
+	# Wave 1 is a crawl (~26% of cap). Speed ramps linearly and hard-caps at wave 12.
+	var t := clampf(float(wave - 1) / 11.0, 0.0, 1.0)
+	speed *= lerpf(0.26, 1.0, t) * randf_range(0.94, 1.06)
 	skin = skin.lerp(Color("4A5A38"), randf() * 0.25)
 
 
@@ -66,7 +82,7 @@ func _ready() -> void:
 	floor_snap_length = 0.2
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
-	var sc := 1.0
+	sc = 1.0
 	if kind == "lunk":
 		sc = 1.4
 	elif kind == "mayor":
@@ -78,11 +94,66 @@ func _ready() -> void:
 	cs.shape = cap
 	cs.position.y = 0.65 * sc
 	add_child(cs)
-	_build(sc)
+	_build()
+	_hp_bar()
 	groan_t = randf_range(1.5, 5.0)
 
 
-func _build(sc: float) -> void:
+## World point shots should aim at: roughly the sternum.
+func aim_center() -> Vector3:
+	return global_position + Vector3(0, 0.72 * sc, 0)
+
+
+func _hp_bar() -> void:
+	hp_root = Node3D.new()
+	hp_root.position = Vector3(0, 1.75 * sc, 0)
+	add_child(hp_root)
+	var bg := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(0.9, 0.11)
+	bg.mesh = q
+	var bm := StandardMaterial3D.new()
+	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bm.albedo_color = Color(0.06, 0.05, 0.08, 0.85)
+	bm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	bm.billboard_keep_scale = true
+	bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bm.no_depth_test = true
+	bm.render_priority = 3
+	bg.material_override = bm
+	bg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	hp_root.add_child(bg)
+	hp_fill = MeshInstance3D.new()
+	var q2 := QuadMesh.new()
+	q2.size = Vector2(0.84, 0.07)
+	q2.center_offset = Vector3(0.42, 0, 0)
+	hp_fill.mesh = q2
+	hp_fill.position = Vector3(-0.42, 0, 0.001)
+	var fm := StandardMaterial3D.new()
+	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fm.albedo_color = Color("8BE05A")
+	fm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fm.billboard_keep_scale = true
+	fm.no_depth_test = true
+	fm.render_priority = 4
+	hp_fill.material_override = fm
+	hp_fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	hp_root.add_child(hp_fill)
+	hp_root.visible = false
+
+
+func _refresh_hp() -> void:
+	if hp_fill == null:
+		return
+	var f := clampf(float(core) / float(max_core), 0.0, 1.0)
+	hp_fill.scale.x = maxf(f, 0.01)
+	var m: StandardMaterial3D = hp_fill.material_override
+	m.albedo_color = Color("8BE05A") if f > 0.5 else (Color("FFB347") if f > 0.25 else Color("E24B4B"))
+	hp_show = 3.0
+	hp_root.visible = true
+
+
+func _build() -> void:
 	vis = Node3D.new()
 	add_child(vis)
 	if kind == "shambler":
@@ -187,14 +258,14 @@ func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInst
 	return mi
 
 
-func _cap(parent: Node3D, pos: Vector3, sc: Vector3, color: Color) -> MeshInstance3D:
+func _cap(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var c := CapsuleMesh.new()
 	c.radius = 0.5
 	c.height = 1.4
 	mi.mesh = c
 	mi.position = pos
-	mi.scale = sc
+	mi.scale = size
 	mi.material_override = _mat(color)
 	parent.add_child(mi)
 	return mi
@@ -209,6 +280,8 @@ func _ball(parent: Node3D, pos: Vector3, r: float, color: Color, lit: bool = fal
 	mi.position = pos
 	var m := _mat(color)
 	if lit:
+		# Glowing bits keep their own emission; leave them out of the hit flash.
+		mats.erase(m)
 		m.emission_enabled = true
 		m.emission = color
 		m.emission_energy_multiplier = 1.8
@@ -217,7 +290,7 @@ func _ball(parent: Node3D, pos: Vector3, r: float, color: Color, lit: bool = fal
 	return mi
 
 
-func _cyl(parent: Node3D, pos: Vector3, sc: Vector3, color: Color) -> MeshInstance3D:
+func _cyl(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var c := CylinderMesh.new()
 	c.top_radius = 0.5
@@ -225,10 +298,23 @@ func _cyl(parent: Node3D, pos: Vector3, sc: Vector3, color: Color) -> MeshInstan
 	c.height = 1.0
 	mi.mesh = c
 	mi.position = pos
-	mi.scale = sc
+	mi.scale = size
 	mi.material_override = _mat(color)
 	parent.add_child(mi)
 	return mi
+
+
+func _set_flash(on: bool) -> void:
+	if on == flash_on:
+		return
+	flash_on = on
+	for m in mats:
+		if on:
+			m.emission_enabled = true
+			m.emission = Color(1.0, 0.95, 0.85)
+			m.emission_energy_multiplier = 2.2
+		else:
+			m.emission_enabled = false
 
 
 func _physics_process(delta: float) -> void:
@@ -240,12 +326,16 @@ func _physics_process(delta: float) -> void:
 	chew_cd = maxf(0.0, chew_cd - delta)
 	swipe_cd = maxf(0.0, swipe_cd - delta)
 	slam_t = maxf(0.0, slam_t - delta)
+	flash_t = maxf(0.0, flash_t - delta)
+	_set_flash(flash_t > 0.0)
+	if hp_show > 0.0:
+		hp_show -= delta
+		if hp_show <= 0.0 and hp_root:
+			hp_root.visible = false
 	groan_t -= delta
 	if groan_t <= 0.0:
-		AudioDirector.play("groan", randf_range(0.7, 1.15))
+		AudioDirector.play_at("groan", global_position, randf_range(0.7, 1.15) * (0.8 if sc > 1.2 else 1.0))
 		groan_t = randf_range(3.5, 7.5)
-	if vis:
-		vis.visible = i_frames <= 0.0 or fmod(i_frames, 0.1) > 0.05
 	if not is_on_floor():
 		velocity.y -= 26.0 * delta
 
@@ -268,10 +358,18 @@ func _physics_process(delta: float) -> void:
 	to.y = 0.0
 	var dist := to.length()
 	var dir := to.normalized() if dist > 0.08 else Vector3.FORWARD
+	# Loose crowd behaviour: don't stack inside each other, drift a little.
+	wander_t -= delta
+	if wander_t <= 0.0:
+		wander_t = randf_range(0.8, 1.8)
+		wander = Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * randf_range(0.0, 0.35)
+	var steer := dir + _separation() + wander
+	if steer.length() > 0.05:
+		dir = steer.normalized()
 
 	if vis and not crawling:
 		vis.rotation.y = lerp_angle(vis.rotation.y, atan2(dir.x, dir.z), 0.16)
-		walk_t += delta * clampf(spd * 2.2, 3.0, 9.0)
+		walk_t += delta * clampf(spd * 3.2, 1.15, 9.5)
 		var swing := sin(walk_t) * 0.45
 		if kind == "runner":
 			swing *= 1.25
@@ -289,7 +387,7 @@ func _physics_process(delta: float) -> void:
 		air_slam = true
 		velocity = dir * 3.0
 		velocity.y = 7.5
-		AudioDirector.play("whoom", 0.8)
+		AudioDirector.play_at("whoom", global_position, 0.8)
 
 	var blocked := _front_build(dir)
 	if blocked and blocked.has_method("chew"):
@@ -298,34 +396,65 @@ func _physics_process(delta: float) -> void:
 		if chew_cd <= 0.0:
 			chew_cd = 0.7
 			blocked.chew(4)
-			AudioDirector.play("thud", 1.3)
+			_lunge()
+			AudioDirector.play_at("chew", global_position, randf_range(0.9, 1.2))
 	elif keep and global_position.distance_to(keep.global_position) < 2.4:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		if chew_cd <= 0.0 and keep.has_method("chew"):
 			chew_cd = 0.85
 			keep.chew(3 if kind != "lunk" else 6)
+			_lunge()
 	else:
 		if hunter and is_instance_valid(hunter) and _wants_hunter() and global_position.distance_to(hunter.global_position) < 1.55:
 			velocity.x = 0.0
 			velocity.z = 0.0
 			if swipe_cd <= 0.0:
 				swipe_cd = 1.05
+				_lunge()
 				if hunter.has_method("receive_hit"):
 					hunter.receive_hit(self, 1, 7.5)
-				AudioDirector.play("whoosh", 0.7)
+				AudioDirector.play_at("whoosh", global_position, 0.7)
 		else:
-			velocity.x = dir.x * spd
-			velocity.z = dir.z * spd
+			var accel := 16.0 if kind == "runner" else 9.0
+			velocity.x = move_toward(velocity.x, dir.x * spd, accel * delta)
+			velocity.z = move_toward(velocity.z, dir.z * spd, accel * delta)
 	move_and_slide()
 	if air_slam and is_on_floor():
 		air_slam = false
 		if hunter and global_position.distance_to(hunter.global_position) < 3.4 and hunter.has_method("receive_hit"):
 			hunter.receive_hit(self, 1, 10.0)
+		if hunter and hunter.has_method("shake"):
+			hunter.shake(0.45)
 		FX.burst(get_parent(), global_position, Color("5A5E62"), 10, 1.6)
-		AudioDirector.play("thud", 0.6)
+		AudioDirector.play_at("thud", global_position, 0.6)
 	if global_position.y < -2.5:
 		_die()
+
+
+func _lunge() -> void:
+	if vis == null:
+		return
+	var tw := create_tween()
+	tw.tween_property(vis, "position:z", 0.22 * sc, 0.08)
+	tw.tween_property(vis, "position:z", 0.0, 0.18)
+
+
+func _separation() -> Vector3:
+	var push := Vector3.ZERO
+	var r := 0.95 * sc
+	for n in get_tree().get_nodes_in_group("zed"):
+		if n == self or not (n is Node3D):
+			continue
+		var o := (n as Node3D).global_position
+		var d := global_position - o
+		d.y = 0.0
+		var l := d.length()
+		if l < 0.01:
+			push += Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * 0.3
+		elif l < r:
+			push += d / l * ((r - l) / r) * 0.9
+	return push
 
 
 func _goal() -> Vector3:
@@ -374,24 +503,45 @@ func receive_shot(pos: Vector3, dir: Vector3, dmg: int, knock: float, style: Str
 	if style == "wire" and i_frames > 0.0:
 		return
 	i_frames = 0.08 if style == "wire" or style == "spikes" else 0.12
+	flash_t = 0.09
 	var limb := _nearest(pos)
+	var headshot := limb == "head"
 	if limb != "" and parts[limb]["on"]:
 		parts[limb]["hp"] -= dmg
 		if parts[limb]["hp"] <= 0:
 			_detach(limb, dir)
 		else:
 			FX.spark(get_parent(), pos)
-	core -= dmg if limb != "head" else int(ceil(float(dmg) * 1.6))
-	if limb == "head":
-		FX.float_text(get_parent(), pos, "HEAD!", Color("FFE27A"))
-	stun = 0.12
+	var real := dmg if not headshot else int(ceil(float(dmg) * 1.6))
+	if style == "stake":
+		real = int(ceil(float(real) * 1.15))
+		stun = 0.45
+	elif style == "frost":
+		apply_slow(3.4)
+		flash_t = 0.16
+	elif style == "hex":
+		flash_t = 0.22
+		apply_slow(0.8)
+	elif style == "nailer":
+		stun = maxf(stun, 0.18)
+	core -= real
+	if style != "wire" and style != "spikes":
+		if headshot:
+			FX.float_text(get_parent(), pos, "HEAD! %d" % real, Color("FFE27A"), 44)
+		else:
+			FX.float_text(get_parent(), pos + Vector3(randf_range(-0.3, 0.3), 0, 0), str(real), Color("FFF6D8"), 30)
+	if style == "stake":
+		stun = maxf(stun, 0.45)
+	elif style != "frost":
+		stun = maxf(stun, 0.12)
 	var push := dir
 	push.y = 0.0
 	if push.length() < 0.05:
 		push = -vis.global_transform.basis.z
 	velocity += push.normalized() * knock
 	velocity.y = maxf(velocity.y, 2.2)
-	AudioDirector.play("hit2", randf_range(0.85, 1.2))
+	AudioDirector.play_at("hit2", global_position, randf_range(0.85, 1.2))
+	_refresh_hp()
 	if core <= 0:
 		_die()
 		return
@@ -400,7 +550,7 @@ func receive_shot(pos: Vector3, dir: Vector3, dmg: int, knock: float, style: Str
 
 func _nearest(pos: Vector3) -> String:
 	var best := ""
-	var best_d := 0.85
+	var best_d := 0.85 * sc
 	for id in parts.keys():
 		if id == "torso":
 			continue
@@ -429,9 +579,9 @@ func _detach(id: String, dir: Vector3) -> void:
 		if c is MeshInstance3D and (c as MeshInstance3D).material_override is StandardMaterial3D:
 			col = ((c as MeshInstance3D).material_override as StandardMaterial3D).albedo_color
 			break
-	FX.fling_bit(get_parent(), n.global_transform, col, 0.22, dir)
+	FX.fling_bit(get_parent(), n.global_transform, col, 0.22 * sc, dir)
 	FX.goo(get_parent(), n.global_position)
-	AudioDirector.play("limb", randf_range(0.9, 1.25))
+	AudioDirector.play_at("limb", global_position, randf_range(0.9, 1.25))
 	var label := id.replace("_", " ").to_upper()
 	if id == "head":
 		label = "BONK!"
@@ -463,6 +613,9 @@ func _die() -> void:
 		return
 	dead = true
 	collision_layer = 0
+	_set_flash(false)
+	if hp_root:
+		hp_root.visible = false
 	for id in parts.keys():
 		var p: Dictionary = parts[id]
 		if p["on"] and p["node"]:
@@ -472,9 +625,13 @@ func _die() -> void:
 				if c is MeshInstance3D and (c as MeshInstance3D).material_override is StandardMaterial3D:
 					col = ((c as MeshInstance3D).material_override as StandardMaterial3D).albedo_color
 					break
-			FX.fling_bit(get_parent(), n.global_transform, col, 0.2, Vector3(randf_range(-1, 1), 1, randf_range(-1, 1)))
+			FX.fling_bit(get_parent(), n.global_transform, col, 0.2 * sc, Vector3(randf_range(-1, 1), 1, randf_range(-1, 1)))
 	FX.goo(get_parent(), global_position + Vector3(0, 0.8, 0))
-	AudioDirector.play("thud", 0.7)
+	AudioDirector.play_at("splat", global_position, randf_range(0.85, 1.1) * (0.75 if sc > 1.2 else 1.0))
+	if hunter and is_instance_valid(hunter) and hunter.has_method("shake"):
+		var d: float = global_position.distance_to(hunter.global_position)
+		if d < 9.0:
+			hunter.shake(0.1 + 0.15 * (sc - 0.8))
 	popped.emit(kind, global_position)
 	queue_free()
 
@@ -485,4 +642,5 @@ func _mat(c: Color) -> StandardMaterial3D:
 	m.roughness = 0.7
 	m.rim_enabled = true
 	m.rim = 0.32
+	mats.append(m)
 	return m

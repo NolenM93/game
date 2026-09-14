@@ -11,6 +11,18 @@ var fire_cd := 0.0
 var fuse := -1.0
 var zone: Area3D
 var tick := 0.0
+var ghost_mat: Material = null
+var head: Node3D
+var wobble := 0.0
+
+
+## Builds only the visual meshes (no collision, no logic) so the hunter can show a placement ghost.
+func ghost_vis() -> Node3D:
+	vis = Node3D.new()
+	_mesh()
+	var v := vis
+	vis = null
+	return v
 
 
 func setup(p_kind: String) -> void:
@@ -64,10 +76,17 @@ func _ready() -> void:
 			a.body_exited.connect(_leave)
 	tag = Label3D.new()
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	tag.font_size = 28
+	tag.font_size = 26
 	tag.outline_size = 8
 	tag.position.y = 1.85
+	tag.no_depth_test = true
+	if Art.font_emoji:
+		tag.font = Art.font_emoji
 	add_child(tag)
+	# Pop-in so placement feels physical.
+	vis.scale = Vector3(1.2, 0.4, 1.2)
+	var tw := create_tween()
+	tw.tween_property(vis, "scale", Vector3.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_refresh()
 
 
@@ -86,10 +105,19 @@ func _mesh() -> void:
 			_box(Vector3(0.12, 0.62, 0.38), Vector3(0.1, 0.08, 0.06), Color("1A1520"))
 		"turret":
 			_box(Vector3(0, 0.7, 0), Vector3(0.18, 1.4, 0.18), Color("6B3A18"))
-			_ball(Vector3(0, 1.45, 0), 0.42, Color("E07020"))
-			_box(Vector3(0, 1.45, 0.45), Vector3(0.16, 0.16, 0.7), Color("4A4A52"))
-			_box(Vector3(-0.18, 1.55, 0.2), Vector3(0.1, 0.08, 0.06), Color("1A1520"))
-			_box(Vector3(0.18, 1.55, 0.2), Vector3(0.1, 0.08, 0.06), Color("1A1520"))
+			_box(Vector3(0, 0.95, 0), Vector3(1.1, 0.1, 0.1), Color("6B3A18"))
+			_box(Vector3(0, 0.06, 0), Vector3(0.6, 0.12, 0.6), Color("3A2A1C"))
+			head = Node3D.new()
+			head.position = Vector3(0, 1.45, 0)
+			vis.add_child(head)
+			var keep_vis := vis
+			vis = head
+			_ball(Vector3.ZERO, 0.42, Color("E07020"))
+			_box(Vector3(0, 0.0, 0.45), Vector3(0.16, 0.16, 0.7), Color("4A4A52"))
+			_box(Vector3(0, 0.44, 0), Vector3(0.1, 0.2, 0.1), Color("3A8A3A"))
+			_box(Vector3(-0.18, 0.1, 0.34), Vector3(0.12, 0.09, 0.06), Color("1A1520"))
+			_box(Vector3(0.18, 0.1, 0.34), Vector3(0.12, 0.09, 0.06), Color("1A1520"))
+			vis = keep_vis
 		"spikes":
 			for i in 5:
 				var x := -0.5 + i * 0.25
@@ -105,6 +133,11 @@ func _mesh() -> void:
 
 func _physics_process(delta: float) -> void:
 	fire_cd = maxf(0.0, fire_cd - delta)
+	if wobble > 0.0:
+		wobble = maxf(0.0, wobble - delta * 4.0)
+		vis.rotation.z = sin(Time.get_ticks_msec() * 0.05) * 0.08 * wobble
+		if wobble <= 0.0:
+			vis.rotation.z = 0.0
 	if kind == "turret":
 		_turret(delta)
 	if fuse >= 0.0:
@@ -120,28 +153,37 @@ func _physics_process(delta: float) -> void:
 				_touch(b)
 
 
-func _turret(_delta: float) -> void:
+func _turret(delta: float) -> void:
 	var best: Node3D = null
-	var best_d := 14.0
+	var best_d := 15.0
 	for n in get_tree().get_nodes_in_group("zed"):
-		if n is Node3D:
+		if n is Node3D and not bool(n.get("dead")):
 			var d: float = global_position.distance_to((n as Node3D).global_position)
 			if d < best_d:
 				best_d = d
 				best = n
-	if best == null:
+	if head == null:
 		return
-	var look := best.global_position
-	look.y = vis.global_position.y
-	if vis and vis.global_position.distance_to(look) > 0.2:
-		vis.look_at(look, Vector3.UP)
-	if fire_cd <= 0.0:
+	if best == null:
+		# Idle scan so the crow reads as alive.
+		head.rotation.y = lerp_angle(head.rotation.y, sin(Time.get_ticks_msec() * 0.0007) * 0.9, delta * 2.0)
+		return
+	var to := best.global_position - head.global_position
+	var want := atan2(to.x, to.z) - global_rotation.y
+	head.rotation.y = lerp_angle(head.rotation.y, want, 1.0 - pow(0.001, delta))
+	var aimed := absf(angle_difference(head.rotation.y, want)) < 0.2
+	if fire_cd <= 0.0 and aimed:
 		fire_cd = 0.55
 		if best.has_method("receive_shot"):
-			var dir := (best.global_position - global_position).normalized()
-			best.receive_shot(best.global_position + Vector3(0, 0.8, 0), dir, 2, 3.5, "pea")
-			FX.tracer(get_parent(), global_position + Vector3(0, 1.45, 0), best.global_position + Vector3(0, 0.9, 0), Color("FFE27A"))
-			AudioDirector.play("spark", 0.8)
+			var target: Vector3 = best.call("aim_center") if best.has_method("aim_center") else best.global_position + Vector3(0, 0.8, 0)
+			var beak := head.global_position + head.global_transform.basis.z * 0.8
+			var dir := (target - beak).normalized()
+			best.receive_shot(target, dir, 2, 3.5, "pea")
+			FX.tracer(get_parent(), beak, target, Color("FFE27A"))
+			AudioDirector.play_at("spark", beak, randf_range(0.75, 0.9))
+			head.position.z = -0.12
+			var tw := create_tween()
+			tw.tween_property(head, "position:z", 0.0, 0.12)
 
 
 func _touch(n: Node) -> void:
@@ -174,6 +216,8 @@ func receive_shot(pos: Vector3, _dir: Vector3, dmg: int, _knock: float, _style: 
 
 func chew(dmg: int) -> void:
 	_hurt(dmg)
+	wobble = 1.0
+	FX.burst(get_parent(), global_position + Vector3(0, 0.8, 0), Color("C48A4A"), 4, 1.1)
 
 
 func _hurt(dmg: int) -> void:
@@ -181,7 +225,7 @@ func _hurt(dmg: int) -> void:
 	_refresh()
 	if hp <= 0:
 		FX.wood(get_parent(), global_position + Vector3(0, 0.6, 0))
-		AudioDirector.play("thud", 0.85)
+		AudioDirector.play_at("thud", global_position, 0.85)
 		queue_free()
 
 
@@ -204,11 +248,22 @@ func _jack_boom() -> void:
 
 func _refresh() -> void:
 	if tag:
-		tag.text = "HP %d" % maxi(hp, 0)
-		tag.modulate = Color("B8C4A8")
+		# Only nag about HP once the piece has taken a bite.
+		if hp >= max_hp:
+			tag.text = ""
+			return
+		var frac := clampf(float(hp) / float(max_hp), 0.0, 1.0)
+		var blocks := int(ceil(frac * 6.0))
+		var s := ""
+		for i in 6:
+			s += "▮" if i < blocks else "▯"
+		tag.text = s
+		tag.modulate = Color("B8C4A8") if frac > 0.5 else (Color("FFB347") if frac > 0.25 else Color("E24B4B"))
 
 
-func _mat(c: Color) -> StandardMaterial3D:
+func _mat(c: Color) -> Material:
+	if ghost_mat:
+		return ghost_mat
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
 	m.roughness = 0.7

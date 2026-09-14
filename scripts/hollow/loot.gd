@@ -39,24 +39,51 @@ func _mesh() -> void:
 			_box(Vector3(0, 0.28, 0), Vector3(0.11, 0.11, 0.95), Color("C48A4A"))
 			_box(Vector3(0, 0.28, -0.38), Vector3(0.16, 0.16, 0.2), Color("3A2A1C"))
 		"ammo":
-			_sphere(Vector3(-0.14, 0.22, 0.04), 0.16, Color("FFE27A"))
-			_sphere(Vector3(0.12, 0.2, -0.08), 0.14, Color("FFB347"))
-			_sphere(Vector3(0.02, 0.32, 0.12), 0.12, Color("FFF6D8"))
+			_box(Vector3(0, 0.16, 0), Vector3(0.28, 0.16, 0.38), Color("C45A20"))
+			_sphere(Vector3(-0.08, 0.28, 0.04), 0.1, Color("FFE27A"))
+			_sphere(Vector3(0.1, 0.26, -0.06), 0.09, Color("FFB347"))
 		"candy":
 			_sphere(Vector3(0, 0.24, 0), 0.2, Color("FF8A3A"))
 			_box(Vector3(0, 0.24, 0), Vector3(0.42, 0.06, 0.16), Color("FFE27A"))
 		"gun_shotgun":
-			_box(Vector3(0, 0.28, 0.12), Vector3(0.1, 0.12, 0.72), Color("3A2A1C"))
-			_box(Vector3(0, 0.18, -0.18), Vector3(0.09, 0.18, 0.16), Color("1A140E"))
+			_box(Vector3(0, 0.28, 0.1), Vector3(0.16, 0.08, 0.72), Color("3A2A1C"))
+			_box(Vector3(-0.05, 0.28, 0.42), Vector3(0.05, 0.05, 0.22), Color("1A140E"))
+			_box(Vector3(0.05, 0.28, 0.42), Vector3(0.05, 0.05, 0.22), Color("1A140E"))
+			_box(Vector3(0, 0.16, -0.18), Vector3(0.09, 0.18, 0.16), Color("5A3A22"))
 		"gun_nailer":
-			_box(Vector3(0, 0.3, 0.16), Vector3(0.07, 0.07, 0.9), Color("4A5058"))
+			_box(Vector3(0, 0.3, 0.16), Vector3(0.06, 0.06, 0.95), Color("6A7078"))
 			_box(Vector3(0, 0.2, -0.16), Vector3(0.09, 0.16, 0.16), Color("1A140E"))
+			_box(Vector3(0, 0.3, 0.62), Vector3(0.03, 0.03, 0.16), Color("D4FF8A"))
 		"gun_gloop":
-			_sphere(Vector3(0, 0.28, 0.02), 0.2, Color("6AA84A"))
-			_box(Vector3(0, 0.28, 0.28), Vector3(0.1, 0.1, 0.36), Color("3A4630"))
+			_sphere(Vector3(0, 0.3, 0.02), 0.22, Color("6AA84A"))
+			_box(Vector3(0, 0.3, 0.32), Vector3(0.1, 0.1, 0.36), Color("3A4630"))
+			_sphere(Vector3(0, 0.3, 0.52), 0.1, Color("8BE05A"))
 		"gun_rocket":
-			_box(Vector3(0, 0.28, 0.1), Vector3(0.14, 0.14, 0.64), Color("C45A20"))
-			_sphere(Vector3(0, 0.28, -0.22), 0.14, Color("FFB347"))
+			_box(Vector3(0, 0.28, 0.12), Vector3(0.16, 0.16, 0.7), Color("C45A20"))
+			_sphere(Vector3(0, 0.28, -0.24), 0.16, Color("FFB347"))
+			_box(Vector3(0, 0.28, 0.5), Vector3(0.08, 0.04, 0.16), Color("FFE27A"))
+		"gun_stake":
+			_box(Vector3(0, 0.3, 0.18), Vector3(0.07, 0.07, 1.1), Color("5A3A28"))
+			_box(Vector3(0, 0.3, 0.72), Vector3(0.14, 0.03, 0.24), Color("8A8E94"))
+			_box(Vector3(0, 0.16, -0.28), Vector3(0.12, 0.22, 0.16), Color("1A140E"))
+		"gun_hex":
+			_box(Vector3(0, 0.2, -0.08), Vector3(0.08, 0.08, 0.42), Color("3A2418"))
+			_sphere(Vector3(0, 0.42, 0.22), 0.22, Color("B070D0"))
+			_box(Vector3(0, 0.64, 0.22), Vector3(0.3, 0.08, 0.3), Color("C4A05A"))
+		"gun_frost":
+			_box(Vector3(0, 0.3, 0.16), Vector3(0.06, 0.06, 0.92), Color("7EC8E8"))
+			_box(Vector3(0, 0.38, 0.16), Vector3(0.12, 0.04, 0.16), Color("DEEEF8"))
+			_box(Vector3(0, 0.2, -0.16), Vector3(0.09, 0.16, 0.16), Color("DEEEF8"))
+		"heart":
+			_cyl_mesh(Vector3(0, 0.16, 0), 0.22, 0.1, Color("C48A4A"))
+			_cyl_mesh(Vector3(0, 0.24, 0), 0.18, 0.08, Color("E07020"))
+			_sphere(Vector3(-0.06, 0.3, 0.04), 0.08, Color("E56BA0"))
+			_sphere(Vector3(0.06, 0.3, 0.04), 0.08, Color("E56BA0"))
+		"oil":
+			_cyl_mesh(Vector3(0, 0.28, 0), 0.11, 0.42, Color("C45A20"))
+			_sphere(Vector3(0, 0.28, 0), 0.09, Color("FFB347"))
+			_cyl_mesh(Vector3(0, 0.52, 0), 0.07, 0.1, Color("3A2418"))
+			_sphere(Vector3(0, 0.6, 0), 0.06, Color("FFE27A"))
 		_:
 			_box(Vector3(0, 0.26, 0), Vector3(0.34, 0.34, 0.34), item.get("color", Color("FFE27A")))
 	var tag := Label3D.new()
@@ -127,6 +154,18 @@ func _sphere(pos: Vector3, radius: float, color: Color) -> void:
 	s.radius = radius
 	s.height = radius * 2.0
 	mi.mesh = s
+	mi.position = pos
+	mi.material_override = _mat(color)
+	vis.add_child(mi)
+
+
+func _cyl_mesh(pos: Vector3, radius: float, height: float, color: Color) -> void:
+	var mi := MeshInstance3D.new()
+	var c := CylinderMesh.new()
+	c.top_radius = radius
+	c.bottom_radius = radius
+	c.height = height
+	mi.mesh = c
 	mi.position = pos
 	mi.material_override = _mat(color)
 	vis.add_child(mi)

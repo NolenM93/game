@@ -4,13 +4,18 @@ extends RefCounted
 signal changed
 
 const DEFS := {
-	"gun_shotgun": {"id": "gun_shotgun", "name": "Squeaky Twelve", "kind": "gun", "gun": 0, "mag": 8, "max_stack": 1, "color": Color("3A2A1C"), "mark": "SG", "icon": "💥"},
-	"gun_nailer": {"id": "gun_nailer", "name": "Tomb Nailer", "kind": "gun", "gun": 1, "mag": 14, "max_stack": 1, "color": Color("4A5058"), "mark": "TN", "icon": "🔩"},
-	"gun_gloop": {"id": "gun_gloop", "name": "Gloop-O-Matic", "kind": "gun", "gun": 2, "mag": 6, "max_stack": 1, "color": Color("6AA84A"), "mark": "GO", "icon": "🫧"},
-	"gun_rocket": {"id": "gun_rocket", "name": "Bottle Rocket", "kind": "gun", "gun": 3, "mag": 3, "max_stack": 1, "color": Color("C45A20"), "mark": "BR", "icon": "🚀"},
-	"bat": {"id": "bat", "name": "Porch Bat", "kind": "melee", "max_stack": 1, "color": Color("C48A4A"), "mark": "BAT", "icon": "🦇"},
-	"ammo": {"id": "ammo", "name": "Candy Caps", "kind": "ammo", "max_stack": 64, "color": Color("FFE27A"), "mark": "CAP", "icon": "🍬"},
-	"candy": {"id": "candy", "name": "Candy", "kind": "candy", "max_stack": 64, "color": Color("FF8A3A"), "mark": "YUM", "icon": "🍭"},
+	"gun_shotgun": {"id": "gun_shotgun", "name": "Squeaky Twelve", "kind": "gun", "gun": 0, "mag": 8, "max_stack": 1, "color": Color("3A2A1C"), "mark": "SG", "icon": "💥", "desc": "Wide blast. Knocks a crowd back."},
+	"gun_nailer": {"id": "gun_nailer", "name": "Tomb Nailer", "kind": "gun", "gun": 1, "mag": 14, "max_stack": 1, "color": Color("4A5058"), "mark": "TN", "icon": "🔩", "desc": "Fast iron nails. Staggers whatever it hits."},
+	"gun_gloop": {"id": "gun_gloop", "name": "Gloop-O-Matic", "kind": "gun", "gun": 2, "mag": 6, "max_stack": 1, "color": Color("6AA84A"), "mark": "GO", "icon": "🫧", "desc": "Sticky candy slime. Slows a whole shuffle."},
+	"gun_rocket": {"id": "gun_rocket", "name": "Bottle Rocket", "kind": "gun", "gun": 3, "mag": 3, "max_stack": 1, "color": Color("C45A20"), "mark": "BR", "icon": "🚀", "desc": "Arcing firework. Boom on impact."},
+	"gun_stake": {"id": "gun_stake", "name": "Grave Stake", "kind": "gun", "gun": 4, "mag": 5, "max_stack": 1, "color": Color("5A3A28"), "mark": "GS", "icon": "🗡️", "desc": "Heavy iron stake. Huge hit, long pause."},
+	"gun_hex": {"id": "gun_hex", "name": "Hex Lantern", "kind": "gun", "gun": 5, "mag": 4, "max_stack": 1, "color": Color("B070D0"), "mark": "HX", "icon": "🏮", "desc": "Thrown lantern. Burns everything nearby."},
+	"gun_frost": {"id": "gun_frost", "name": "Rime Nail", "kind": "gun", "gun": 6, "mag": 10, "max_stack": 1, "color": Color("7EC8E8"), "mark": "RN", "icon": "❄️", "desc": "Ice tack. Freezes feet to the dirt."},
+	"bat": {"id": "bat", "name": "Porch Bat", "kind": "melee", "max_stack": 1, "color": Color("C48A4A"), "mark": "BAT", "icon": "🦇", "desc": "A swing that pops heads if you get close."},
+	"ammo": {"id": "ammo", "name": "Candy Caps", "kind": "ammo", "max_stack": 64, "color": Color("FFE27A"), "mark": "CAP", "icon": "🍬", "desc": "Reload candy for every gun."},
+	"candy": {"id": "candy", "name": "Candy", "kind": "candy", "max_stack": 64, "color": Color("FF8A3A"), "mark": "YUM", "icon": "🍭", "desc": "Spent to build fences and traps."},
+	"heart": {"id": "heart", "name": "Pumpkin Tart", "kind": "heal", "max_stack": 8, "color": Color("E56BA0"), "mark": "HP", "icon": "🥧", "desc": "Eat to mend a hunter heart."},
+	"oil": {"id": "oil", "name": "Lantern Oil", "kind": "oil", "max_stack": 8, "color": Color("FFB347"), "mark": "OIL", "icon": "🛢️", "desc": "Pour into the keep to restore flame."},
 }
 
 var bag: Array = []
@@ -28,7 +33,7 @@ func _init() -> void:
 		bar[i] = {}
 	bar[0] = make("gun_shotgun")
 	bar[1] = make("bat")
-	add(make("ammo", 12))
+	add(make("ammo", 20))
 
 
 static func make(id: String, count: int = 1) -> Dictionary:

@@ -38,6 +38,51 @@ static func goo(host: Node3D, pos: Vector3) -> void:
 static func boom(host: Node3D, pos: Vector3) -> void:
 	burst(host, pos, Color("FFB347"), 20, 3.2)
 	burst(host, pos, Color("FFE27A"), 10, 2.0)
+	burst(host, pos, Color("3A2E2A"), 8, 2.6)
+	flash(host, pos, Color("FFB060"), 9.0, 9.0, 0.28)
+	ring(host, pos, Color(1.0, 0.75, 0.4, 0.8), 3.2, 0.32)
+
+
+## Short-lived point light for explosions and big hits.
+static func flash(host: Node3D, pos: Vector3, color: Color, energy: float, range_m: float, dur: float) -> void:
+	if host == null or not is_instance_valid(host):
+		return
+	var l := OmniLight3D.new()
+	l.light_color = color
+	l.light_energy = energy
+	l.omni_range = range_m
+	l.shadow_enabled = false
+	host.add_child(l)
+	l.global_position = pos + Vector3(0, 0.6, 0)
+	var tw := host.create_tween()
+	tw.tween_property(l, "light_energy", 0.0, dur)
+	tw.tween_callback(l.queue_free)
+
+
+## Expanding ground ring (shockwave / impact marker).
+static func ring(host: Node3D, pos: Vector3, color: Color, radius: float, dur: float) -> void:
+	if host == null or not is_instance_valid(host):
+		return
+	var mi := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.42
+	tm.outer_radius = 0.5
+	tm.rings = 32
+	tm.ring_segments = 6
+	mi.mesh = tm
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	host.add_child(mi)
+	mi.global_position = pos + Vector3(0, 0.08, 0)
+	mi.scale = Vector3(0.2, 1.0, 0.2)
+	var tw := host.create_tween()
+	tw.tween_property(mi, "scale", Vector3(radius * 2.0, 1.0, radius * 2.0), dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, dur)
+	tw.tween_callback(mi.queue_free)
 
 
 static func wood(host: Node3D, pos: Vector3) -> void:
@@ -67,23 +112,25 @@ static func tracer(host: Node3D, a: Vector3, b: Vector3, color: Color = Color("F
 	tw.tween_callback(mi.queue_free)
 
 
-static func float_text(host: Node3D, pos: Vector3, text: String, color: Color) -> void:
-	if host == null:
+static func float_text(host: Node3D, pos: Vector3, text: String, color: Color, size: int = 48) -> void:
+	if host == null or not is_instance_valid(host):
 		return
 	var l := Label3D.new()
 	l.text = text
-	l.font_size = 48
-	l.outline_size = 10
+	l.font_size = size
+	l.outline_size = maxi(4, int(size * 0.2))
 	l.modulate = color
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = true
+	l.render_priority = 5
 	if Art.font_emoji:
 		l.font = Art.font_emoji
 	host.add_child(l)
 	l.global_position = pos + Vector3(0, 1.2, 0)
+	var dur := 0.55 if size >= 40 else 0.7
 	var tw := host.create_tween()
-	tw.tween_property(l, "global_position", l.global_position + Vector3(0, 1.1, 0), 0.55)
-	tw.parallel().tween_property(l, "modulate:a", 0.0, 0.55)
+	tw.tween_property(l, "global_position", l.global_position + Vector3(randf_range(-0.2, 0.2), 1.1, 0), dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(l, "modulate:a", 0.0, dur).set_delay(dur * 0.35)
 	tw.tween_callback(l.queue_free)
 
 
