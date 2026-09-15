@@ -9,6 +9,8 @@ const FX = preload("res://scripts/hollow/hollow_fx.gd")
 const PackData = preload("res://scripts/hollow/pack.gd")
 const LootDrop = preload("res://scripts/hollow/loot.gd")
 const Wheel = preload("res://scripts/hollow/mystery_wheel.gd")
+const Town = preload("res://scripts/hollow/town.gd")
+const PowerDrop = preload("res://scripts/hollow/powerup.gd")
 
 const SAVE_PATH := "user://hollow_best.cfg"
 const GRID := 1.85
@@ -19,7 +21,7 @@ var hunter
 var keep
 var graves: Array = []
 var candy := 70
-var coins := 0
+var coins := 500
 var wave := 0
 var alive := 0
 var kills := 0
@@ -73,6 +75,14 @@ var last_weather := -1
 var lightning_flash := 0.0
 var wheel
 var lamp_posts: Array[OmniLight3D] = []
+var town
+var power_on := false
+var town_open := false
+var insta_t := 0.0
+var double_t := 0.0
+var round_lbl: Label
+var buff_lbl: Label
+var points_lbl: Label
 
 
 func _ready() -> void:
@@ -86,6 +96,7 @@ func _ready() -> void:
 	_ground()
 	_hills()
 	_yard()
+	_town()
 	_woods()
 	_bats()
 	_mist()
@@ -183,14 +194,79 @@ func spend_coins(n: int) -> bool:
 
 
 func try_wheel() -> bool:
-	if wheel == null:
-		return false
-	return wheel.try_spin()
+	return try_interact()
+
+
+func try_interact() -> bool:
+	if wheel and wheel.try_spin():
+		return true
+	if town:
+		for s in town.stations:
+			if s and s.has_method("try_use") and s.try_use():
+				return true
+	return false
+
+
+func _open_town() -> void:
+	town_open = true
+	_show("TOWN OPEN")
+	AudioDirector.play("win", 0.85)
+
+
+func _on_power() -> void:
+	power_on = true
+	if town and town.has_method("set_power"):
+		town.set_power(true)
+	_show("POWER ON")
+	if env:
+		env.ambient_light_energy = maxf(env.ambient_light_energy, 0.7)
+
+
+func apply_powerup(kind: String, pos: Vector3) -> void:
+	match kind:
+		"maxammo":
+			if hunter and hunter.has_method("fill_all_ammo"):
+				hunter.fill_all_ammo()
+			_show("MAX AMMO")
+		"instakill":
+			insta_t = 22.0
+			_show("INSTA-KILL")
+		"double":
+			double_t = 22.0
+			_show("DOUBLE POINTS")
+		"nuke":
+			_nuke(pos)
+		"carpenter":
+			if keep and keep.has_method("heal"):
+				keep.heal(40)
+			_show("CARPENTER")
+	AudioDirector.play("win", 1.1)
+	FX.ring(self, pos, Color(1.0, 0.85, 0.4, 0.85), 3.2, 0.45)
+	_refresh()
+
+
+func _nuke(pos: Vector3) -> void:
+	_show("NUKE")
+	FX.flash(self, pos, Color("FF8A3A"), 14.0, 18.0, 0.6)
+	var n := 0
+	for z in get_tree().get_nodes_in_group("zed"):
+		if z == null or bool(z.get("dead")):
+			continue
+		z.dead = true
+		z.collision_layer = 0
+		n += 1
+		kills += 1
+		alive = maxi(0, alive - 1)
+		z.queue_free()
+	add_coins(400 + n * 10, pos)
 
 
 func player_down() -> void:
+	var chew := 12
+	if hunter and hunter.has_method("has_perk") and hunter.has_perk("revive"):
+		chew = 4
 	if keep and keep.has_method("chew"):
-		keep.chew(12)
+		keep.chew(chew)
 	_show("DOWN! The lantern flickered...")
 	AudioDirector.play("alarm", 0.8)
 
@@ -419,10 +495,9 @@ func _hills() -> void:
 
 func _plot(xz: Vector3, wide: float = 6.2, deep: float = 5.4) -> Vector3:
 	var gy := 0.72
-	# Stone footing continues well below the lawn so no camera can see a gap.
-	_box(Vector3(xz.x, gy - 1.55, xz.z), Vector3(wide, 3.3, deep), Color("3A3E46"), true, null, stone_mat)
-	# Packed earth hugging the walls, flush with the grass.
-	_box(Vector3(xz.x, gy - 0.22, xz.z), Vector3(wide + 1.2, 0.72, deep + 1.2), Color("1E281C"), true, null, ground_mat)
+	# Tops sit at lawn height so there is no curb to climb.
+	_box(Vector3(xz.x, gy - 1.7, xz.z), Vector3(wide, 3.4, deep), Color("3A3E46"), true, null, stone_mat)
+	_box(Vector3(xz.x, gy - 0.5, xz.z), Vector3(wide + 1.2, 1.0, deep + 1.2), Color("1E281C"), true, null, ground_mat)
 	var top := Vector3(xz.x, gy, xz.z)
 	hill_pads.append(top)
 	return top
@@ -452,7 +527,7 @@ func _shed(pad: Vector3, loot: Array) -> void:
 	if toward.length() > 0.2:
 		n.rotation.y = atan2(toward.x, toward.z)
 	add_child(n)
-	_box(Vector3(0, 0.1, 0), Vector3(4.6, 0.2, 3.8), Color("3A2A1C"), true, n)
+	_box(Vector3(0, 0.04, 0), Vector3(4.6, 0.08, 3.8), Color("3A2A1C"), true, n)
 	_box(Vector3(0, 1.45, -1.82), Vector3(4.6, 2.5, 0.18), Color("4A3424"), true, n)
 	_box(Vector3(-2.22, 1.45, 0), Vector3(0.18, 2.5, 3.8), Color("4A3424"), true, n)
 	_box(Vector3(2.22, 1.45, 0), Vector3(0.18, 2.5, 3.8), Color("4A3424"), true, n)
@@ -468,9 +543,7 @@ func _shed(pad: Vector3, loot: Array) -> void:
 	_box(Vector3(-2.23, 1.7, -0.45), Vector3(0.06, 0.7, 0.7), Color("FFB347", 0.5), false, n, pane)
 	_box(Vector3(2.23, 1.7, -0.45), Vector3(0.06, 0.7, 0.7), Color("FFB347", 0.5), false, n, pane)
 	_box(Vector3(-1.1, 1.75, -1.84), Vector3(0.7, 0.7, 0.06), Color("FFB347", 0.5), false, n, pane)
-	_box(Vector3(0, 0.06, 2.45), Vector3(2.6, 0.12, 1.3), Color("3A2A1C"), true, n)
-	_box(Vector3(-0.55, -0.08, 3.05), Vector3(0.85, 0.16, 0.45), Color("4A3424"), true, n)
-	_box(Vector3(0.55, -0.2, 3.28), Vector3(0.85, 0.16, 0.45), Color("4A3424"), true, n)
+	_box(Vector3(0, 0.03, 2.45), Vector3(2.6, 0.06, 1.3), Color("3A2A1C"), false, n)
 	var lamp := OmniLight3D.new()
 	lamp.position = Vector3(0, 2.2, 0)
 	lamp.light_color = Color("FF8A3A")
@@ -485,6 +558,20 @@ func _shed(pad: Vector3, loot: Array) -> void:
 		var id := str(loot[i])
 		var local: Vector3 = spots[i % spots.size()]
 		_spawn_loot(n.to_global(local), id)
+
+
+func _town() -> void:
+	town = Town.new()
+	add_child(town)
+	town.setup(self)
+
+
+func _in_street(p: Vector3) -> bool:
+	if p.x > 8.0 and p.x < 72.0 and absf(p.z) < 7.5:
+		return true
+	if p.x > 30.0 and p.x < 72.0 and absf(p.z) < 22.0:
+		return true
+	return false
 
 
 func _yard() -> void:
@@ -578,6 +665,8 @@ func _woods() -> void:
 		var p := Vector3(cos(a) * r, 0, sin(a) * r)
 		if Vector2(p.x, p.z).length() < 20.0:
 			continue
+		if _in_street(p):
+			continue
 		var blocked := false
 		for pad in hill_pads:
 			if Vector2(p.x - pad.x, p.z - pad.z).length() < 10.0:
@@ -591,7 +680,10 @@ func _woods() -> void:
 			_tree(p)
 	for i in 8:
 		var a := TAU * i / 8.0 + 0.4
-		_dead_tree(Vector3(cos(a) * 26.0, 0, sin(a) * 26.0))
+		var p := Vector3(cos(a) * 26.0, 0, sin(a) * 26.0)
+		if _in_street(p):
+			continue
+		_dead_tree(p)
 
 
 func _pumpkin(at: Vector3) -> void:
@@ -725,13 +817,27 @@ func _graves() -> void:
 	for r in rings.size():
 		for i in counts[r]:
 			var a := TAU * float(i) / float(counts[r]) + r * 0.17
+			var pos := Vector3(cos(a) * rings[r], 0, sin(a) * rings[r])
+			if _in_street(pos):
+				continue
 			var g = Grave.new()
 			g.variant = rng.randi_range(0, 2)
-			g.position = Vector3(cos(a) * rings[r], _ground_y(Vector3(cos(a) * rings[r], 0, sin(a) * rings[r])), sin(a) * rings[r])
+			g.position = Vector3(pos.x, _ground_y(pos), pos.z)
 			g.rotation.y = a + PI
 			g.burst.connect(_spawn_at.bind(g))
 			add_child(g)
 			graves.append(g)
+	for spec in [
+		Vector3(42, 0, -18), Vector3(54, 0, -18), Vector3(42, 0, 18), Vector3(54, 0, 18),
+		Vector3(48, 0, -22), Vector3(48, 0, 22), Vector3(66, 0, 4), Vector3(66, 0, -4)
+	]:
+		var g = Grave.new()
+		g.in_town = true
+		g.variant = rng.randi_range(0, 2)
+		g.position = Vector3(spec.x, _ground_y(spec), spec.z)
+		g.burst.connect(_spawn_at.bind(g))
+		add_child(g)
+		graves.append(g)
 
 
 func _hunter() -> void:
@@ -747,7 +853,7 @@ func _wheel() -> void:
 	wheel = Wheel.new()
 	wheel.world = self
 	var gy := _ground_y(Vector3(4.6, 0, 5.2))
-	_box(Vector3(4.6, gy - 0.35, 5.2), Vector3(1.9, 1.1, 1.9), Color("3A3E46"), true, null, stone_mat)
+	_box(Vector3(4.6, gy - 0.55, 5.2), Vector3(1.9, 1.1, 1.9), Color("3A3E46"), true, null, stone_mat)
 	wheel.position = Vector3(4.6, gy, 5.2)
 	add_child(wheel)
 
@@ -803,29 +909,53 @@ func _hud() -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(root)
-	_label(root, Vector2(48, 22), 34, Color("FFB347"), true).text = "LANTERN HOLLOW"
-	hearts = _label(root, Vector2(48, 66), 24, Color("E56BA0"))
-	lantern_lbl = _label(root, Vector2(48, 96), 20, Color("FFB347"))
-	lantern_lbl.text = "🏮 Lantern"
+	_label(root, Vector2(48, 22), 28, Color("FFB347"), true).text = "LANTERN HOLLOW"
+	points_lbl = _label(root, Vector2(48, 62), 42, Color("FFE27A"), true)
+	buff_lbl = _label(root, Vector2(48, 112), 20, Color("E24B4B"))
+	round_lbl = Label.new()
+	round_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	round_lbl.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	round_lbl.offset_left = -360
+	round_lbl.offset_right = -40
+	round_lbl.offset_top = 24
+	round_lbl.offset_bottom = 80
+	round_lbl.add_theme_font_size_override("font_size", 40)
+	if Art.font_title:
+		round_lbl.add_theme_font_override("font", Art.font_title)
+	round_lbl.add_theme_color_override("font_color", Color("E24B4B"))
+	round_lbl.add_theme_color_override("font_outline_color", Color(0.08, 0.02, 0.02, 0.95))
+	round_lbl.add_theme_constant_override("outline_size", 10)
+	root.add_child(round_lbl)
+	hearts = _label(root, Vector2(48, 9000), 18, Color("E56BA0"))
+	lantern_lbl = _label(root, Vector2(48, 9000), 16, Color("FFB347"))
 	bar_bg = ColorRect.new()
-	bar_bg.color = Color(0.08, 0.08, 0.1, 0.7)
-	bar_bg.position = Vector2(170, 104)
-	bar_bg.size = Vector2(280, 14)
+	bar_bg.visible = false
 	root.add_child(bar_bg)
 	bar = ColorRect.new()
-	bar.color = Color("FFB347")
-	bar.position = Vector2(170, 104)
-	bar.size = Vector2(280, 14)
+	bar.visible = false
 	root.add_child(bar)
-	hud = _label(root, Vector2(48, 128), 24, Color("D4E0C8"))
-	next_lbl = _label(root, Vector2(48, 162), 20, Color("B8C4A8"))
-	gear = _label(root, Vector2(48, 192), 22, Color("FFE27A"))
+	hud = _label(root, Vector2(48, 9000), 18, Color("D4E0C8"))
+	next_lbl = Label.new()
+	next_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	next_lbl.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	next_lbl.offset_left = -420
+	next_lbl.offset_right = 420
+	next_lbl.offset_top = -202
+	next_lbl.offset_bottom = -174
+	next_lbl.add_theme_font_size_override("font_size", 22)
+	if Art.font_body:
+		next_lbl.add_theme_font_override("font", Art.font_body)
+	next_lbl.add_theme_color_override("font_color", Color("FFE27A"))
+	next_lbl.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.08, 0.95))
+	next_lbl.add_theme_constant_override("outline_size", 8)
+	root.add_child(next_lbl)
+	gear = _label(root, Vector2(48, 9000), 18, Color("FFE27A"))
 	hint = Label.new()
 	hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.offset_left = 0
-	hint.offset_top = -160
-	hint.offset_bottom = -128
+	hint.offset_top = -248
+	hint.offset_bottom = -216
 	hint.offset_right = 1920
 	hint.add_theme_font_size_override("font_size", 18)
 	if Art.font_body:
@@ -942,13 +1072,13 @@ func _show_start_card() -> void:
 	card_title.text = "LANTERN HOLLOW"
 	var controls := ""
 	if InputSetup.pad_connected():
-		controls = "LS move  ·  RS look  ·  RT shoot  ·  B bat swing\nY build mode  ·  LB / RB pick item  ·  X reload\nView pack  ·  E at the wheel spends coins  ·  L3 call wave\nRS click first-person  ·  LT zoom"
+		controls = "LS move  ·  RS look  ·  RT shoot  ·  B bat swing\nY build  ·  LB / RB items  ·  X reload  ·  View inventory\nE buy / mystery box / power  ·  L3 call round  ·  RS click FP"
 	else:
-		controls = "WASD move  ·  Mouse aim  ·  Click shoot  ·  V bat swing\nTab build mode  ·  1-9 pick item  ·  R reload\nE pack, or spin the Mystery Wheel when close  ·  Enter call wave\nScroll zoom  ·  F first-person"
+		controls = "WASD move  ·  Mouse aim  ·  Click shoot  ·  V bat\nTab build  ·  1-9 hotbar  ·  R reload  ·  E inventory or buy\nEnter call round  ·  F first-person  ·  Scroll zoom"
 	var best := ""
 	if best_wave > 0:
 		best = "\n\nBest run: wave %d" % best_wave
-	card_body.text = "The last lantern in the graveyard is yours to guard.\nEach wave, cartoon zombies crawl out of the graves and shamble toward it.\n\nFortify in the calm: fences stall them, wire slows them, jack bombs pop them, Peckcrows shoot for you.\nPop zombies and clear waves to earn coins, then spin the Mystery Wheel for strange guns.\n\n" + controls + best
+	card_body.text = "Guard the last lantern, then follow Hollow Street into town.\nRounds of zombies, points for kills, wall guns and perk sodas — CoD Zombies rules with a Minecraft hotbar.\n\nClear debris to open the intersection. Hit the power, buy guns off the walls, drink perks.\nCandy still builds traps. Coins buy everything in town.\n\n" + controls + best
 	card_prompt.text = "Click or press A to begin"
 
 
@@ -972,13 +1102,21 @@ func _start() -> void:
 	hint_t = 18.0
 	if hint:
 		hint.modulate.a = 1.0
-	_show("FORTIFY THE LANTERN")
+	_show("HOLD THE LANTERN")
 	AudioDirector.play("confirm", 1.1)
 
 
 func _process(delta: float) -> void:
 	_tick_sky(delta)
 	_tick_weather(delta)
+	if insta_t > 0.0:
+		insta_t = maxf(0.0, insta_t - delta)
+		if insta_t == 0.0:
+			_show("INSTA-KILL OVER")
+	if double_t > 0.0:
+		double_t = maxf(0.0, double_t - delta)
+		if double_t == 0.0:
+			_show("DOUBLE POINTS OVER")
 	if hint_t > 0.0:
 		hint_t -= delta
 		if hint and hint_t < 1.5:
@@ -1048,7 +1186,7 @@ func _wave_clear() -> void:
 	prep = NEXT_PREP
 	last_tick = -1
 	add_candy(8 + wave * 2, keep.global_position + Vector3(0, 2.2, 0) if keep else Vector3.ZERO)
-	add_coins(18 + wave * 8, keep.global_position + Vector3(0, 2.8, 0) if keep else Vector3.ZERO)
+	add_coins(400 + wave * 100, keep.global_position + Vector3(0, 2.8, 0) if keep else Vector3.ZERO)
 	if keep and keep.has_method("heal"):
 		keep.heal(15)
 	if wave > best_wave:
@@ -1061,7 +1199,7 @@ func _wave_clear() -> void:
 		_show("THE HOLLOW GOES QUIET... keep going")
 		AudioDirector.play("win")
 	else:
-		_show("WAVE %d CLEAR  —  fortify" % wave)
+		_show("ROUND %d CLEAR" % wave)
 		AudioDirector.play("confirm")
 	_refresh()
 
@@ -1075,7 +1213,7 @@ func _begin_wave() -> void:
 	spawn_t = 1.15
 	if hunter and hunter.has_method("shake"):
 		hunter.shake(0.25)
-	var title := "WAVE  %d" % wave
+	var title := "ROUND  %d" % wave
 	if wave == 5:
 		title = "THE MAYOR WALKS"
 	elif wave == 8:
@@ -1133,7 +1271,16 @@ func _wake_next() -> void:
 	if to_spawn.is_empty() or graves.is_empty():
 		return
 	var kind: String = to_spawn.pop_front()
-	var g = graves[randi() % graves.size()]
+	var pool: Array = []
+	for g in graves:
+		if g == null:
+			continue
+		if bool(g.get("in_town")) and not town_open:
+			continue
+		pool.append(g)
+	if pool.is_empty():
+		pool = graves
+	var g = pool[randi() % pool.size()]
 	if g.has_method("wake"):
 		g.wake(kind)
 
@@ -1152,7 +1299,7 @@ func _spawn_at(kind: String, g: Node3D) -> void:
 	_refresh()
 
 
-func _on_pop(kind: String, pos: Vector3) -> void:
+func _on_pop(kind: String, pos: Vector3, head: bool = false, style: String = "") -> void:
 	alive = maxi(0, alive - 1)
 	kills += 1
 	var pay := 3
@@ -1163,15 +1310,41 @@ func _on_pop(kind: String, pos: Vector3) -> void:
 	elif kind == "mayor":
 		pay = 15
 	add_candy(pay, pos)
-	var bits := 3
+	var bits := 60
 	if kind == "runner":
-		bits = 2
+		bits = 50
 	elif kind == "lunk":
-		bits = 5
+		bits = 80
 	elif kind == "mayor":
-		bits = 14
+		bits = 250
+	if head:
+		bits += 50
+	if style == "bat":
+		bits = 130
+	if double_t > 0.0:
+		bits *= 2
 	add_coins(bits, pos)
+	if randf() < 0.12 and kind != "mayor":
+		_drop_power(pos)
 	_refresh()
+
+
+func _drop_power(pos: Vector3) -> void:
+	var roll := randf()
+	var id := "maxammo"
+	if roll < 0.18:
+		id = "nuke"
+	elif roll < 0.36:
+		id = "instakill"
+	elif roll < 0.58:
+		id = "double"
+	elif roll < 0.72:
+		id = "carpenter"
+	var drop = PowerDrop.new()
+	drop.setup(id)
+	drop.world = self
+	drop.position = pos + Vector3(0, 0.4, 0)
+	add_child(drop)
 
 
 func _on_ruined() -> void:
@@ -1202,9 +1375,9 @@ func _set_control_hint() -> void:
 	if hint == null:
 		return
 	if InputSetup.pad_connected():
-		hint.text = "LS move   RS look   RT shoot   B bat   Y build   LB/RB items   X reload   View pack   L3 call wave   RS click view   LT / D-pad zoom"
+		hint.text = "LS move   RS look   RT shoot   B bat   Y build   E buy / inventory   X reload   L3 round"
 	else:
-		hint.text = "WASD move   Mouse aim   Click shoot   V bat   Tab build   1-9 items   R reload   E pack   Enter call wave   Scroll zoom   F first-person"
+		hint.text = "WASD move   Mouse aim   Click shoot   1-9 hotbar   E buy / inventory   Tab build   Enter round   F first-person"
 
 
 func _show(text: String) -> void:
@@ -1218,50 +1391,53 @@ func _show(text: String) -> void:
 
 
 func _refresh() -> void:
-	if hearts and hunter:
-		var s := "Hunter  "
-		for i in hunter.max_hp:
-			s += "●" if i < hunter.hp else "○"
-		hearts.text = s
-	if hud:
+	if points_lbl:
+		points_lbl.text = "%d" % coins
+	if round_lbl:
 		if not started:
-			hud.text = "🍬  %d      🪙  %d      Wave  %d" % [candy, coins, wave]
-		elif not fighting and not over:
-			var sec := maxi(0, ceili(prep))
-			hud.text = "🍬  %d      🪙  %d      Wave  %d      BUILD  %d:%02d" % [candy, coins, wave, int(sec / 60), sec % 60]
+			round_lbl.text = ""
+		elif fighting:
+			round_lbl.text = "ROUND %d" % wave
 		else:
-			hud.text = "🍬  %d      🪙  %d      Wave  %d      Walking  %d" % [candy, coins, wave, alive]
+			round_lbl.text = "ROUND %d" % maxi(wave, 1)
+	if buff_lbl:
+		var bits: PackedStringArray = []
+		if insta_t > 0.0:
+			bits.append("💀 INSTA")
+		if double_t > 0.0:
+			bits.append("x2 POINTS")
+		if hunter and hunter.has_method("perk_line"):
+			var extra: String = hunter.perk_line()
+			if extra != "":
+				bits.append(extra)
+		buff_lbl.text = "   ".join(bits)
 	if next_lbl:
-		if wheel and wheel.near and not over:
-			next_lbl.text = "E  spin the Mystery Wheel  ·  %d 🪙" % int(wheel.COST)
-		elif not fighting and not over:
-			next_lbl.text = "Next wave:  " + _preview(wave + 1)
+		var prompt := _interact_prompt()
+		if prompt != "":
+			next_lbl.text = prompt
+		elif hunter and hunter.build_on:
+			next_lbl.text = "BUILD  %s  (%d 🍬)" % [hunter.names_build[hunter.build_i], hunter.build_cost[hunter.build_i]]
+		elif not fighting and not over and started:
+			next_lbl.text = _preview(wave + 1)
 		else:
-			next_lbl.text = "Popped  %d" % kills
-	if bar and keep:
-		bar.size.x = 280.0 * clampf(float(keep.hp) / float(keep.max_hp), 0.0, 1.0)
-		bar.color = Color("FFB347") if keep.hp > 30 else Color("E24B4B")
-	if lantern_lbl and keep:
-		lantern_lbl.text = "🏮 Lantern  %d" % keep.hp
-	if gear and hunter:
-		if hunter.build_on:
-			var lines := "BUILD  "
-			for i in hunter.names_build.size():
-				var mark := ">" if i == hunter.build_i else " "
-				var ic: String = hunter.icons_build[i] if i < hunter.icons_build.size() else "•"
-				lines += "%s%d %s %s (%d)   " % [mark, i + 1, ic, hunter.names_build[i] if i == hunter.build_i else "", hunter.build_cost[i]]
-			gear.text = lines
-		else:
-			var held: String = hunter._held_name() if hunter.has_method("_held_name") else hunter.names_gun[hunter.gun]
-			var extra := ""
-			if hunter.pack and str(hunter.pack.equipped().get("kind", "")) == "gun":
-				extra = "   %d/%d" % [int(hunter.pack.equipped().get("ammo", 0)), int(hunter.pack.equipped().get("mag", 0))]
-				if hunter.reload_t > 0.0:
-					extra += "   reloading..."
-			var desc := str(hunter.pack.equipped().get("desc", "")) if hunter.pack else ""
-			if desc != "":
-				extra += "   ·  " + desc
-			gear.text = "%s%s" % [held, extra]
+			next_lbl.text = ""
+	if hunter and hunter.pack_ui and hunter.pack_ui.has_method("refresh_hud"):
+		hunter.pack_ui.refresh_hud()
+
+
+func _interact_prompt() -> String:
+	if over:
+		return ""
+	if wheel and wheel.near:
+		if wheel.spinning:
+			return ""
+		return "E  Mystery Box  ·  %d 🪙" % int(wheel.COST)
+	if town:
+		for s in town.stations:
+			if s and bool(s.near):
+				if s.has_method("prompt"):
+					return str(s.prompt())
+	return ""
 
 
 # --- primitives ---------------------------------------------------------------

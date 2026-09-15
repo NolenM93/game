@@ -4,7 +4,7 @@ extends Area3D
 const PackData = preload("res://scripts/hollow/pack.gd")
 const FX = preload("res://scripts/hollow/hollow_fx.gd")
 
-const COST := 28
+const COST := 950
 const WEIGHTS := [
 	["ammo", 20],
 	["candy", 12],

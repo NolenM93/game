@@ -38,6 +38,8 @@ var mats: Array[StandardMaterial3D] = []
 var hp_root: Node3D
 var hp_fill: MeshInstance3D
 var hp_show := 0.0
+var last_head := false
+var last_style := ""
 var wander := Vector3.ZERO
 var wander_t := 0.0
 
@@ -506,6 +508,10 @@ func receive_shot(pos: Vector3, dir: Vector3, dmg: int, knock: float, style: Str
 	flash_t = 0.09
 	var limb := _nearest(pos)
 	var headshot := limb == "head"
+	last_head = headshot
+	last_style = style
+	if hunter and is_instance_valid(hunter) and hunter.world and float(hunter.world.get("insta_t")) > 0.0:
+		dmg = maxi(dmg, 999)
 	if limb != "" and parts[limb]["on"]:
 		parts[limb]["hp"] -= dmg
 		if parts[limb]["hp"] <= 0:
@@ -632,7 +638,7 @@ func _die() -> void:
 		var d: float = global_position.distance_to(hunter.global_position)
 		if d < 9.0:
 			hunter.shake(0.1 + 0.15 * (sc - 0.8))
-	popped.emit(kind, global_position)
+	popped.emit(kind, global_position, last_head, last_style)
 	queue_free()
 
 

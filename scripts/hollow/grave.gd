@@ -8,6 +8,7 @@ var rumble := 0.0
 var queued := ""
 var variant := 0
 var dirt: MeshInstance3D
+var in_town := false
 
 
 func _ready() -> void:

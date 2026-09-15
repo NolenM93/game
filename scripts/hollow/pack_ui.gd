@@ -19,6 +19,14 @@ var bag_btns: Array[Button] = []
 var focus_where := "bar"
 var focus_index := 0
 var nav_cd := 0.0
+var name_lbl: Label
+var heart_lbl: Label
+var xp_bg: ColorRect
+var xp_fill: ColorRect
+var xp_lvl: Label
+var candy_lbl: Label
+var last_held := ""
+var name_t := 0.0
 
 
 func setup(h: Node) -> void:
@@ -44,7 +52,7 @@ func _build() -> void:
 	bag_wrap.visible = false
 	add_child(bag_wrap)
 	title = Label.new()
-	title.text = "PACK"
+	title.text = "Inventory"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.set_anchors_preset(Control.PRESET_CENTER)
 	title.offset_left = -200
@@ -59,7 +67,7 @@ func _build() -> void:
 		title.add_theme_font_override("font", Art.font_title)
 	bag_wrap.add_child(title)
 	hint = Label.new()
-	hint.text = "A move    X split    B close    R3 drop    D-pad / stick move"
+	hint.text = "Click to move    Right-click split    Esc close    Q drop"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.set_anchors_preset(Control.PRESET_CENTER)
 	hint.offset_left = -420
@@ -89,14 +97,82 @@ func _build() -> void:
 	bar_row.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	bar_row.offset_left = -330
 	bar_row.offset_right = 330
-	bar_row.offset_top = -92
-	bar_row.offset_bottom = -28
+	bar_row.offset_top = -78
+	bar_row.offset_bottom = -14
 	bar_row.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	add_child(bar_row)
 	for i in 9:
 		var b := _slot_btn("bar", i)
 		bar_row.add_child(b)
 		bar_btns.append(b)
+	heart_lbl = Label.new()
+	heart_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heart_lbl.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	heart_lbl.offset_left = -320
+	heart_lbl.offset_right = 320
+	heart_lbl.offset_top = -148
+	heart_lbl.offset_bottom = -118
+	heart_lbl.add_theme_font_size_override("font_size", 22)
+	heart_lbl.add_theme_color_override("font_color", Color("E24B4B"))
+	heart_lbl.add_theme_color_override("font_outline_color", Color(0.08, 0.04, 0.04, 0.95))
+	heart_lbl.add_theme_constant_override("outline_size", 6)
+	heart_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(heart_lbl)
+	xp_bg = ColorRect.new()
+	xp_bg.color = Color(0.08, 0.08, 0.1, 0.85)
+	xp_bg.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	xp_bg.offset_left = -182
+	xp_bg.offset_right = 182
+	xp_bg.offset_top = -116
+	xp_bg.offset_bottom = -106
+	xp_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(xp_bg)
+	xp_fill = ColorRect.new()
+	xp_fill.color = Color("7CFF4A")
+	xp_fill.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	xp_fill.offset_left = -182
+	xp_fill.offset_right = 182
+	xp_fill.offset_top = -116
+	xp_fill.offset_bottom = -106
+	xp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(xp_fill)
+	xp_lvl = Label.new()
+	xp_lvl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	xp_lvl.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	xp_lvl.offset_left = -80
+	xp_lvl.offset_right = 80
+	xp_lvl.offset_top = -122
+	xp_lvl.offset_bottom = -100
+	xp_lvl.add_theme_font_size_override("font_size", 14)
+	xp_lvl.add_theme_color_override("font_color", Color("3A2A14"))
+	xp_lvl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(xp_lvl)
+	candy_lbl = Label.new()
+	candy_lbl.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	candy_lbl.offset_left = -330
+	candy_lbl.offset_right = -190
+	candy_lbl.offset_top = -120
+	candy_lbl.offset_bottom = -96
+	candy_lbl.add_theme_font_size_override("font_size", 16)
+	candy_lbl.add_theme_color_override("font_color", Color("FFB347"))
+	candy_lbl.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.08, 0.9))
+	candy_lbl.add_theme_constant_override("outline_size", 5)
+	candy_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(candy_lbl)
+	name_lbl = Label.new()
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	name_lbl.offset_left = -280
+	name_lbl.offset_right = 280
+	name_lbl.offset_top = -176
+	name_lbl.offset_bottom = -150
+	name_lbl.add_theme_font_size_override("font_size", 20)
+	name_lbl.add_theme_color_override("font_color", Color("FFF6D8"))
+	name_lbl.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.08, 0.95))
+	name_lbl.add_theme_constant_override("outline_size", 7)
+	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_lbl.modulate.a = 0.0
+	add_child(name_lbl)
 	ghost = Panel.new()
 	ghost.size = Vector2(64, 64)
 	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -149,6 +225,15 @@ func _slot_btn(where: String, index: int) -> Button:
 	qty.add_theme_font_size_override("font_size", 14)
 	qty.add_theme_color_override("font_color", Color("FFF6D8"))
 	b.add_child(qty)
+	if where == "bar":
+		var num := Label.new()
+		num.name = "Num"
+		num.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		num.text = str(index + 1)
+		num.position = Vector2(4, 2)
+		num.add_theme_font_size_override("font_size", 12)
+		num.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
+		b.add_child(num)
 	return b
 
 
@@ -192,7 +277,7 @@ func set_open(v: bool) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("inventory"):
-		if hunter and hunter.world and hunter.world.has_method("try_wheel") and hunter.world.try_wheel():
+		if hunter and hunter.world and hunter.world.has_method("try_interact") and hunter.world.try_interact():
 			get_viewport().set_input_as_handled()
 			return
 		toggle()
@@ -263,6 +348,9 @@ func _process(delta: float) -> void:
 			_move_focus(dx, dy)
 			nav_cd = 0.16
 			refresh()
+	if name_lbl and name_t > 0.0:
+		name_t -= delta
+		name_lbl.modulate.a = clampf(name_t, 0.0, 1.0)
 	var it: Dictionary = hunter.pack.cursor
 	ghost.visible = open and not PackData.blank(it)
 	if ghost.visible:
@@ -281,21 +369,47 @@ func refresh() -> void:
 		_paint_btn(bar_btns[i], hunter.pack.bar[i], i == hunter.pack.selected, open and focus_where == "bar" and i == focus_index)
 	for i in bag_btns.size():
 		_paint_btn(bag_btns[i], hunter.pack.bag[i], false, open and focus_where == "bag" and i == focus_index)
+	var held: Dictionary = hunter.pack.equipped()
+	var nm := str(held.get("name", ""))
+	if nm != "" and nm != last_held:
+		last_held = nm
+		name_lbl.text = nm
+		name_t = 2.4
+		name_lbl.modulate.a = 1.0
+	refresh_hud()
+
+
+func refresh_hud() -> void:
+	if hunter == null:
+		return
+	if heart_lbl:
+		var s := ""
+		for i in hunter.max_hp:
+			s += "❤" if i < hunter.hp else "♡"
+		heart_lbl.text = s
+	if candy_lbl and hunter.world:
+		candy_lbl.text = "🍬 %d" % int(hunter.world.get("candy"))
+	if xp_fill and hunter.world and hunter.world.has_method("lantern_frac"):
+		var f: float = hunter.world.lantern_frac()
+		xp_fill.offset_right = xp_fill.offset_left + 364.0 * clampf(f, 0.0, 1.0)
+		xp_fill.color = Color("7CFF4A") if f > 0.35 else Color("E24B4B")
+	if xp_lvl and hunter.world:
+		xp_lvl.text = str(maxi(int(hunter.world.get("wave")), 0))
 
 
 func _paint_btn(b: Button, it: Dictionary, on: bool, focused: bool = false) -> void:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("1A1612")
+	sb.bg_color = Color(0.22, 0.22, 0.22, 0.92)
 	if focused:
 		sb.border_color = Color("FFF6D8")
-		sb.set_border_width_all(4)
+		sb.set_border_width_all(3)
 	elif on:
-		sb.border_color = Color("FFB347")
+		sb.border_color = Color("FFFFFF")
 		sb.set_border_width_all(3)
 	else:
-		sb.border_color = Color("3A3228")
-		sb.set_border_width_all(2)
-	sb.set_corner_radius_all(8)
+		sb.border_color = Color(0.08, 0.08, 0.08, 1.0)
+		sb.set_border_width_all(3)
+	sb.set_corner_radius_all(2)
 	b.add_theme_stylebox_override("normal", sb)
 	b.add_theme_stylebox_override("hover", sb)
 	b.add_theme_stylebox_override("pressed", sb)
@@ -313,9 +427,8 @@ func _paint_btn(b: Button, it: Dictionary, on: bool, focused: bool = false) -> v
 	if icon:
 		icon.text = PackData.icon(it)
 		icon.add_theme_color_override("font_color", Color.WHITE)
-	var accent: Color = it.get("color", Color("FFB347"))
 	if on and not focused:
-		sb.border_color = accent
+		sb.border_color = Color("FFFFFF")
 	if qty:
 		if str(it.get("kind", "")) == "gun":
 			qty.text = str(int(it.get("ammo", 0)))

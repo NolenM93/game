@@ -19,6 +19,10 @@ const FP_FOV := 75.0
 const HAND_HIP := Vector3(0.42, 0.98, 0.32)
 const HAND_FP := Vector3(0.34, 1.20, 0.52)
 const BODY_LAYER := 2
+const STEP_HEIGHT := 0.62
+const WALK_SPEED := 6.9
+const GRAVITY := 32.0
+const JUMP_VEL := 9.15
 
 var world: Node
 var locked := false
@@ -84,6 +88,7 @@ var arm_l: Node3D
 var walk_t := 0.0
 var stride := 0
 var foot_ring: MeshInstance3D
+var perks := {"jug": false, "speed": false, "double": false, "revive": false}
 
 
 func _ready() -> void:
@@ -92,8 +97,9 @@ func _ready() -> void:
 	add_to_group("hunter")
 	collision_layer = 2
 	collision_mask = 1 | 16 | 32
-	floor_snap_length = 0.4
-	floor_max_angle = deg_to_rad(52.0)
+	floor_snap_length = 0.7
+	floor_max_angle = deg_to_rad(55.0)
+	safe_margin = 0.06
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.34
@@ -655,11 +661,11 @@ func _physics_process(delta: float) -> void:
 		lamp.light_energy = 2.1 if f > 0.3 else 1.1 + sin(Time.get_ticks_msec() * 0.02) * 0.7
 
 	if not is_on_floor():
-		velocity.y -= 24.0 * delta
+		velocity.y -= GRAVITY * delta
 
 	if locked:
-		velocity.x = move_toward(velocity.x, 0.0, 28.0 * delta)
-		velocity.z = move_toward(velocity.z, 0.0, 28.0 * delta)
+		velocity.x = 0.0
+		velocity.z = 0.0
 		ghost.visible = false
 		move_and_slide()
 		_place_cam(delta)
@@ -700,7 +706,7 @@ func _physics_process(delta: float) -> void:
 		drop_held()
 
 	if Input.is_action_just_pressed("jump") and is_on_floor():
-		velocity.y = 8.2
+		velocity.y = JUMP_VEL
 		AudioDirector.play("jump", 0.95)
 
 	var shoot_now := Input.is_action_pressed("shoot")
@@ -728,14 +734,15 @@ func _physics_process(delta: float) -> void:
 	var forward := _flat(-camera.global_transform.basis.z)
 	var right := _flat(camera.global_transform.basis.x)
 	var wish := right * input.x + forward * (-input.y)
-	var spd := 7.4
 	if wish.length() > 0.1:
 		wish = wish.normalized()
-		velocity.x = wish.x * spd
-		velocity.z = wish.z * spd
-	else:
-		velocity.x = move_toward(velocity.x, 0.0, 28.0 * delta)
-		velocity.z = move_toward(velocity.z, 0.0, 28.0 * delta)
+		velocity.x = wish.x * WALK_SPEED
+		velocity.z = wish.z * WALK_SPEED
+		if is_on_floor():
+			_step_up(wish)
+	elif is_on_floor():
+		velocity.x = 0.0
+		velocity.z = 0.0
 	move_and_slide()
 	_footsteps()
 	_place_cam(delta)
@@ -806,6 +813,45 @@ func heal(n: int) -> void:
 	if hp > before:
 		FX.float_text(get_parent(), global_position + Vector3(0, 1.5, 0), "+%d ♥" % (hp - before), Color("E56BA0"), 36)
 		hp_changed.emit(hp, max_hp)
+
+
+func has_perk(id: String) -> bool:
+	return bool(perks.get(id, false))
+
+
+func give_perk(id: String) -> void:
+	perks[id] = true
+	if id == "jug":
+		max_hp = 10
+		hp = max_hp
+		hp_changed.emit(hp, max_hp)
+	if world and world.has_method("_refresh"):
+		world._refresh()
+	loadout_changed.emit()
+
+
+func perk_line() -> String:
+	var bits: PackedStringArray = []
+	if has_perk("jug"):
+		bits.append("Punch")
+	if has_perk("speed"):
+		bits.append("Rush")
+	if has_perk("double"):
+		bits.append("Tap")
+	if has_perk("revive"):
+		bits.append("Revive")
+	return "  ".join(bits)
+
+
+func fill_all_ammo() -> void:
+	if pack == null:
+		return
+	for arr in [pack.bar, pack.bag]:
+		for it in arr:
+			if str(it.get("kind", "")) == "gun":
+				it["ammo"] = int(it.get("mag", 8))
+	pack.add(Pack.make("ammo", 24))
+	pack.changed.emit()
 
 
 func drop_held() -> void:
@@ -895,6 +941,8 @@ func _fire() -> void:
 			shake(0.08)
 			_muzzle_flash(0.35)
 			InputSetup.rumble(0.08, 0.15, 0.05)
+	if has_perk("double"):
+		fire_cd *= 0.58
 	loadout_changed.emit()
 
 
@@ -1027,7 +1075,7 @@ func _reload() -> void:
 	if pack.take("ammo", 1) <= 0:
 		AudioDirector.play("ui", 0.55)
 		return
-	reload_t = 1.15
+	reload_t = 0.42 if has_perk("speed") else 1.15
 	it["ammo"] = cap
 	AudioDirector.play("reload")
 	pack.changed.emit()
@@ -1072,6 +1120,37 @@ func _place() -> void:
 
 func _aim_point() -> Vector3:
 	return aim_ground
+
+
+func _step_up(dir: Vector3) -> void:
+	if dir.length() < 0.05:
+		return
+	dir = dir.normalized()
+	var probe := dir * 0.34
+	if not test_move(global_transform, probe):
+		return
+	if test_move(global_transform, Vector3(0, STEP_HEIGHT, 0)):
+		return
+	var best := 0.0
+	var low := 0.05
+	var high := STEP_HEIGHT
+	for i in 10:
+		var mid := (low + high) * 0.5
+		if test_move(global_transform, Vector3(0, mid, 0)):
+			high = mid
+			continue
+		var raised := global_transform.translated(Vector3(0, mid, 0))
+		if test_move(raised, probe):
+			low = mid
+			continue
+		if test_move(raised.translated(probe), Vector3(0, -mid - 0.25, 0)):
+			best = mid
+			high = mid
+		else:
+			low = mid
+	if best >= 0.05:
+		global_position.y += best + 0.02
+		velocity.y = 0.0
 
 
 func _flat(v: Vector3) -> Vector3:
