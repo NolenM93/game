@@ -6,6 +6,7 @@ const Pack = preload("res://scripts/hollow/pack.gd")
 const PackUi = preload("res://scripts/hollow/pack_ui.gd")
 const Loot = preload("res://scripts/hollow/loot.gd")
 const Build = preload("res://scripts/hollow/buildable.gd")
+const GunArt = preload("res://scripts/hollow/gun_art.gd")
 
 signal hp_changed(hp: int, max_hp: int)
 signal loadout_changed
@@ -19,7 +20,7 @@ const FP_FOV := 75.0
 const HAND_HIP := Vector3(0.42, 0.98, 0.32)
 const HAND_FP := Vector3(0.34, 1.20, 0.52)
 const BODY_LAYER := 2
-const STEP_HEIGHT := 0.62
+const STEP_HEIGHT := 0.72
 const WALK_SPEED := 6.9
 const GRAVITY := 32.0
 const JUMP_VEL := 9.15
@@ -74,7 +75,7 @@ var spawn := Vector3.ZERO
 var ghost: Node3D
 var ghost_mat: StandardMaterial3D
 var ghost_kind := ""
-var names_gun := ["Squeaky Twelve", "Tomb Nailer", "Gloop-O-Matic", "Bottle Rocket", "Grave Stake", "Hex Lantern", "Rime Nail"]
+var names_gun := ["Trench Gun", "Tommy Gun", "M1 Garand", "Bazooka", "Kar98k", "Ray Gun", "MP40"]
 var names_build := ["Picket Fence", "Barbed Wire", "Jack Bomb", "Peckcrow", "Spike Crate"]
 var icons_build := ["🪵", "⛓️", "🎃", "🐦", "🌵"]
 var build_ids := ["fence", "wire", "jack", "turret", "spikes"]
@@ -97,8 +98,8 @@ func _ready() -> void:
 	add_to_group("hunter")
 	collision_layer = 2
 	collision_mask = 1 | 16 | 32
-	floor_snap_length = 0.7
-	floor_max_angle = deg_to_rad(55.0)
+	floor_snap_length = 0.9
+	floor_max_angle = deg_to_rad(62.0)
 	safe_margin = 0.06
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
@@ -503,59 +504,9 @@ func _rebuild_gun() -> void:
 	var id := "gun_shotgun"
 	if pack:
 		id = str(pack.equipped().get("id", ""))
-	match id:
-		"gun_shotgun":
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.04, 0.42), Vector3(0.18, 0.08, 0.82), _mat(Color("3A2A1C")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(-0.05, 0.04, 0.78), Vector3(0.05, 0.05, 0.28), _mat(Color("1A140E")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0.05, 0.04, 0.78), Vector3(0.05, 0.05, 0.28), _mat(Color("1A140E")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, -0.08, 0.04), Vector3(0.08, 0.2, 0.16), _mat(Color("5A3A22")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.1, 0.18), Vector3(0.06, 0.06, 0.18), _mat(Color("C4A05A"), 0.4, 0.35))
-		"gun_nailer":
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.05, 0.55), Vector3(0.05, 0.05, 1.15), _mat(Color("6A7078"), 0.35, 0.55))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.12, 0.28), Vector3(0.1, 0.08, 0.22), _mat(Color("2A2E34")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, -0.06, 0.02), Vector3(0.08, 0.18, 0.16), _mat(Color("1A140E")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.05, 1.12), Vector3(0.03, 0.03, 0.16), _glow(Color("D4FF8A"), 0.8))
-		"gun_gloop":
-			_mesh(gun_vis, SphereMesh.new(), Vector3(0, 0.08, 0.28), Vector3(0.32, 0.32, 0.42), _glow(Color("6AA84A"), 0.7))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.08, 0.58), Vector3(0.1, 0.1, 0.42), _mat(Color("3A4630")))
-			_mesh(gun_vis, SphereMesh.new(), Vector3(0, 0.08, 0.82), Vector3(0.14, 0.14, 0.14), _glow(Color("8BE05A"), 1.1))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, -0.06, 0.0), Vector3(0.08, 0.16, 0.16), _mat(Color("1A140E")))
-		"gun_rocket":
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.08, 0.48), Vector3(0.16, 0.16, 0.78), _mat(Color("C45A20")))
-			_mesh(gun_vis, SphereMesh.new(), Vector3(0, 0.08, 0.08), Vector3(0.22, 0.22, 0.22), _glow(Color("FFB347"), 1.4))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.08, 0.9), Vector3(0.1, 0.04, 0.18), _mat(Color("FFE27A")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, -0.06, -0.02), Vector3(0.08, 0.16, 0.14), _mat(Color("1A140E")))
-		"gun_stake":
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.05, 0.62), Vector3(0.06, 0.06, 1.28), _mat(Color("5A3A28")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.05, 1.22), Vector3(0.14, 0.03, 0.28), _mat(Color("8A8E94"), 0.3, 0.6))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.05, 0.22), Vector3(0.16, 0.12, 0.2), _mat(Color("3A2418")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, -0.08, 0.0), Vector3(0.1, 0.22, 0.16), _mat(Color("1A140E")))
-		"gun_hex":
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.02, 0.16), Vector3(0.08, 0.08, 0.52), _mat(Color("3A2418")))
-			_mesh(gun_vis, SphereMesh.new(), Vector3(0, 0.16, 0.52), Vector3(0.3, 0.34, 0.3), _glow(Color("B070D0"), 2.0))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.34, 0.52), Vector3(0.32, 0.08, 0.32), _mat(Color("C4A05A"), 0.4, 0.4))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, -0.06, 0.0), Vector3(0.08, 0.16, 0.14), _mat(Color("1A140E")))
-		"gun_frost":
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.05, 0.55), Vector3(0.05, 0.05, 1.12), _glow(Color("7EC8E8"), 1.1))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.12, 0.28), Vector3(0.12, 0.06, 0.16), _mat(Color("DEEEF8"), 0.25, 0.2))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, -0.06, 0.02), Vector3(0.08, 0.18, 0.16), _mat(Color("DEEEF8")))
-		"heart":
-			_mesh(gun_vis, SphereMesh.new(), Vector3(-0.06, 0.08, 0.18), Vector3(0.16, 0.16, 0.16), _glow(Color("E56BA0"), 0.8))
-			_mesh(gun_vis, SphereMesh.new(), Vector3(0.06, 0.08, 0.18), Vector3(0.16, 0.16, 0.16), _glow(Color("E56BA0"), 0.8))
-			_mesh(gun_vis, CylinderMesh.new(), Vector3(0, 0.0, 0.18), Vector3(0.36, 0.1, 0.36), _mat(Color("C48A4A")))
-		"oil":
-			_mesh(gun_vis, CylinderMesh.new(), Vector3(0, 0.08, 0.22), Vector3(0.16, 0.36, 0.16), _glow(Color("FFB347"), 0.9))
-			_mesh(gun_vis, SphereMesh.new(), Vector3(0, 0.28, 0.22), Vector3(0.12, 0.12, 0.12), _mat(Color("3A2418")))
-		"ammo":
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.04, 0.16), Vector3(0.22, 0.14, 0.3), _mat(Color("C45A20")))
-			_mesh(gun_vis, SphereMesh.new(), Vector3(0, 0.14, 0.16), Vector3(0.12, 0.12, 0.12), _glow(Color("FFE27A"), 0.7))
-		"candy":
-			_mesh(gun_vis, SphereMesh.new(), Vector3(0, 0.08, 0.2), Vector3(0.2, 0.2, 0.2), _glow(Color("FF8A3A"), 0.6))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.08, 0.2), Vector3(0.42, 0.05, 0.14), _mat(Color("FFE27A")))
-		"bat":
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.02, 0.48), Vector3(0.1, 0.1, 1.05), _mat(Color("C48A4A")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.02, 0.02), Vector3(0.14, 0.14, 0.18), _mat(Color("3A2A1C")))
-			_mesh(gun_vis, BoxMesh.new(), Vector3(0, 0.02, 0.95), Vector3(0.16, 0.04, 0.12), _mat(Color("2A1C14")))
+	if id == "":
+		return
+	GunArt.attach(gun_vis, id)
 
 
 func _input(event: InputEvent) -> void:
@@ -740,6 +691,7 @@ func _physics_process(delta: float) -> void:
 		velocity.z = wish.z * WALK_SPEED
 		if is_on_floor():
 			_step_up(wish)
+			_stair_follow(wish)
 	elif is_on_floor():
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -901,16 +853,17 @@ func _fire() -> void:
 		1:
 			fire_cd = 0.15
 			AudioDirector.play("shoot", randf_range(1.15, 1.3))
-			_hitscan(0.012, 0.008, 4, 7.5, Color("D4FF8A"), "nailer")
+			_hitscan(0.012, 0.008, 4, 7.5, Color("E8D0A0"), "nailer")
 			shake(0.1)
 			_muzzle_flash(0.5)
 			InputSetup.rumble(0.1, 0.2, 0.06)
 		2:
-			fire_cd = 0.48
-			AudioDirector.play("gloop", randf_range(0.9, 1.1))
-			_lob("gloop", 20.0, 3)
-			shake(0.12)
-			InputSetup.rumble(0.15, 0.2, 0.08)
+			fire_cd = 0.42
+			AudioDirector.play("shoot", randf_range(0.85, 0.95))
+			_hitscan(0.008, 0.005, 8, 9.0, Color("E8DCC0"))
+			shake(0.16)
+			_muzzle_flash(0.7)
+			InputSetup.rumble(0.18, 0.28, 0.08)
 		3:
 			fire_cd = 0.82
 			AudioDirector.play("whoom", 1.15)
@@ -926,21 +879,22 @@ func _fire() -> void:
 			_muzzle_flash(0.7)
 			InputSetup.rumble(0.2, 0.45, 0.1)
 		5:
-			fire_cd = 0.7
-			AudioDirector.play("whoom", 0.75)
-			_lob("hex", 16.0, 5)
-			shake(0.18)
-			_muzzle_flash(0.6)
-			InputSetup.rumble(0.2, 0.3, 0.1)
+			fire_cd = 0.22
+			AudioDirector.play("whoom", 1.35)
+			var zed: Node = _hitscan(0.006, 0.004, 7, 8.0, Color("FF6A22"), "hex")
+			if zed is Node3D:
+				FX.flash(get_parent(), (zed as Node3D).global_position, Color("C040E8"), 6.0, 5.0, 0.18)
+				FX.burst(get_parent(), (zed as Node3D).global_position + Vector3(0, 0.8, 0), Color("C040E8"), 8, 1.4)
+			shake(0.12)
+			_muzzle_flash(0.9)
+			InputSetup.rumble(0.16, 0.25, 0.07)
 		6:
-			fire_cd = 0.2
-			AudioDirector.play("shoot", randf_range(1.4, 1.55))
-			var zed: Node = _hitscan(0.01, 0.008, 3, 4.0, Color("A8E8FF"), "frost")
-			if zed and zed.has_method("apply_slow"):
-				zed.apply_slow(3.4)
+			fire_cd = 0.11
+			AudioDirector.play("shoot", randf_range(1.25, 1.4))
+			_hitscan(0.018, 0.012, 4, 5.5, Color("D8C8A0"))
 			shake(0.08)
-			_muzzle_flash(0.35)
-			InputSetup.rumble(0.08, 0.15, 0.05)
+			_muzzle_flash(0.4)
+			InputSetup.rumble(0.08, 0.16, 0.05)
 	if has_perk("double"):
 		fire_cd *= 0.58
 	loadout_changed.emit()
@@ -1150,6 +1104,23 @@ func _step_up(dir: Vector3) -> void:
 			low = mid
 	if best >= 0.05:
 		global_position.y += best + 0.02
+		velocity.y = 0.0
+
+
+func _stair_follow(dir: Vector3) -> void:
+	if dir.length() < 0.05:
+		return
+	var space := get_world_3d().direct_space_state
+	var origin := global_position + dir.normalized() * 0.48 + Vector3(0, 0.95, 0)
+	var q := PhysicsRayQueryParameters3D.create(origin, origin + Vector3(0, -1.4, 0))
+	q.collision_mask = collision_mask
+	q.exclude = [get_rid()]
+	var hit := space.intersect_ray(q)
+	if hit.is_empty():
+		return
+	var dy: float = (hit.position as Vector3).y - global_position.y
+	if dy > 0.04 and dy <= STEP_HEIGHT and not test_move(global_transform, Vector3(0, dy + 0.03, 0)):
+		global_position.y += dy + 0.02
 		velocity.y = 0.0
 
 

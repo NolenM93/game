@@ -853,7 +853,7 @@ func _wheel() -> void:
 	wheel = Wheel.new()
 	wheel.world = self
 	var gy := _ground_y(Vector3(4.6, 0, 5.2))
-	_box(Vector3(4.6, gy - 0.55, 5.2), Vector3(1.9, 1.1, 1.9), Color("3A3E46"), true, null, stone_mat)
+	_box(Vector3(4.6, gy - 0.55, 5.2), Vector3(2.4, 1.1, 2.4), Color("3A3E46"), true, null, stone_mat)
 	wheel.position = Vector3(4.6, gy, 5.2)
 	add_child(wheel)
 
@@ -1072,13 +1072,13 @@ func _show_start_card() -> void:
 	card_title.text = "LANTERN HOLLOW"
 	var controls := ""
 	if InputSetup.pad_connected():
-		controls = "LS move  ·  RS look  ·  RT shoot  ·  B bat swing\nY build  ·  LB / RB items  ·  X reload  ·  View inventory\nE buy / mystery box / power  ·  L3 call round  ·  RS click FP"
+		controls = "LS move  ·  RS look  ·  RT shoot  ·  B bat swing\nY build  ·  LB / RB items  ·  X reload  ·  View inventory\nE buy / Santa's sack / power  ·  L3 call round  ·  RS click FP"
 	else:
 		controls = "WASD move  ·  Mouse aim  ·  Click shoot  ·  V bat\nTab build  ·  1-9 hotbar  ·  R reload  ·  E inventory or buy\nEnter call round  ·  F first-person  ·  Scroll zoom"
 	var best := ""
 	if best_wave > 0:
 		best = "\n\nBest run: wave %d" % best_wave
-	card_body.text = "Guard the last lantern, then follow Hollow Street into town.\nRounds of zombies, points for kills, wall guns and perk sodas — CoD Zombies rules with a Minecraft hotbar.\n\nClear debris to open the intersection. Hit the power, buy guns off the walls, drink perks.\nCandy still builds traps. Coins buy everything in town.\n\n" + controls + best
+	card_body.text = "Zombies hunt you. Nothing else. Kill them for points, close the round, spend coins in town.\n\nClear debris to open Hollow Street. Hit the power, buy wall guns, drink perks, dip Santa's sack for a random prize.\nCandy still builds traps. Coins buy everything in town.\n\n" + controls + best
 	card_prompt.text = "Click or press A to begin"
 
 
@@ -1225,6 +1225,8 @@ func _begin_wave() -> void:
 
 func _roster(w: int) -> Array:
 	var r: Array = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1701 + w * 97
 	# Wave 1 is a long trickle of shamblers. Count climbs every round and caps so late
 	# hordes stay dense without melting the frame rate.
 	var n := mini(12 + w * 4, 60)
@@ -1234,9 +1236,9 @@ func _roster(w: int) -> Array:
 		elif w >= 3 and i % 7 == 0:
 			r.append("lunk")
 		elif w >= 2 and i % 4 == 0:
-			r.append("runner")
+			r.append("skel" if rng.randf() < 0.4 else "runner")
 		else:
-			r.append("shambler")
+			r.append("skel" if rng.randf() < 0.48 else "shambler")
 	return r
 
 
@@ -1251,13 +1253,15 @@ func _preview(w: int) -> String:
 	for k in _roster(w):
 		counts[k] = int(counts.get(k, 0)) + 1
 	var parts := PackedStringArray()
-	for k in ["shambler", "runner", "lunk", "mayor"]:
+	for k in ["shambler", "skel", "runner", "lunk", "mayor"]:
 		if not counts.has(k):
 			continue
 		var n: int = counts[k]
 		match k:
 			"shambler":
 				parts.append("%d Shambler%s" % [n, "" if n == 1 else "s"])
+			"skel":
+				parts.append("%d Skeleton%s" % [n, "" if n == 1 else "s"])
 			"runner":
 				parts.append("%d Runner%s" % [n, "" if n == 1 else "s"])
 			"lunk":
@@ -1305,6 +1309,8 @@ func _on_pop(kind: String, pos: Vector3, head: bool = false, style: String = "")
 	var pay := 3
 	if kind == "runner":
 		pay = 2
+	elif kind == "skel":
+		pay = 4
 	elif kind == "lunk":
 		pay = 6
 	elif kind == "mayor":
@@ -1313,6 +1319,8 @@ func _on_pop(kind: String, pos: Vector3, head: bool = false, style: String = "")
 	var bits := 60
 	if kind == "runner":
 		bits = 50
+	elif kind == "skel":
+		bits = 70
 	elif kind == "lunk":
 		bits = 80
 	elif kind == "mayor":
@@ -1431,7 +1439,7 @@ func _interact_prompt() -> String:
 	if wheel and wheel.near:
 		if wheel.spinning:
 			return ""
-		return "E  Mystery Box  ·  %d 🪙" % int(wheel.COST)
+		return "E  Santa's Sack  ·  %d 🪙" % int(wheel.COST)
 	if town:
 		for s in town.stations:
 			if s and bool(s.near):

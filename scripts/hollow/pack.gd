@@ -4,15 +4,15 @@ extends RefCounted
 signal changed
 
 const DEFS := {
-	"gun_shotgun": {"id": "gun_shotgun", "name": "Squeaky Twelve", "kind": "gun", "gun": 0, "mag": 8, "max_stack": 1, "color": Color("3A2A1C"), "mark": "SG", "icon": "💥", "desc": "Wide blast. Knocks a crowd back."},
-	"gun_nailer": {"id": "gun_nailer", "name": "Tomb Nailer", "kind": "gun", "gun": 1, "mag": 14, "max_stack": 1, "color": Color("4A5058"), "mark": "TN", "icon": "🔩", "desc": "Fast iron nails. Staggers whatever it hits."},
-	"gun_gloop": {"id": "gun_gloop", "name": "Gloop-O-Matic", "kind": "gun", "gun": 2, "mag": 6, "max_stack": 1, "color": Color("6AA84A"), "mark": "GO", "icon": "🫧", "desc": "Sticky candy slime. Slows a whole shuffle."},
-	"gun_rocket": {"id": "gun_rocket", "name": "Bottle Rocket", "kind": "gun", "gun": 3, "mag": 3, "max_stack": 1, "color": Color("C45A20"), "mark": "BR", "icon": "🚀", "desc": "Arcing firework. Boom on impact."},
-	"gun_stake": {"id": "gun_stake", "name": "Grave Stake", "kind": "gun", "gun": 4, "mag": 5, "max_stack": 1, "color": Color("5A3A28"), "mark": "GS", "icon": "🗡️", "desc": "Heavy iron stake. Huge hit, long pause."},
-	"gun_hex": {"id": "gun_hex", "name": "Hex Lantern", "kind": "gun", "gun": 5, "mag": 4, "max_stack": 1, "color": Color("B070D0"), "mark": "HX", "icon": "🏮", "desc": "Thrown lantern. Burns everything nearby."},
-	"gun_frost": {"id": "gun_frost", "name": "Rime Nail", "kind": "gun", "gun": 6, "mag": 10, "max_stack": 1, "color": Color("7EC8E8"), "mark": "RN", "icon": "❄️", "desc": "Ice tack. Freezes feet to the dirt."},
+	"gun_shotgun": {"id": "gun_shotgun", "name": "Trench Gun", "kind": "gun", "gun": 0, "mag": 8, "max_stack": 1, "color": Color("6A4228"), "mark": "TG", "icon": "💥", "desc": "Pump 12-gauge. Clears a doorway."},
+	"gun_nailer": {"id": "gun_nailer", "name": "Tommy Gun", "kind": "gun", "gun": 1, "mag": 20, "max_stack": 1, "color": Color("4A5058"), "mark": "TM", "icon": "🔫", "desc": "Thompson .45. Fast drum fire."},
+	"gun_gloop": {"id": "gun_gloop", "name": "M1 Garand", "kind": "gun", "gun": 2, "mag": 8, "max_stack": 1, "color": Color("8A5A32"), "mark": "M1", "icon": "🎯", "desc": "U.S. rifle. Ping after eight."},
+	"gun_rocket": {"id": "gun_rocket", "name": "Bazooka", "kind": "gun", "gun": 3, "mag": 3, "max_stack": 1, "color": Color("4A5A38"), "mark": "BZ", "icon": "🚀", "desc": "M1 rocket launcher. Boom on impact."},
+	"gun_stake": {"id": "gun_stake", "name": "Kar98k", "kind": "gun", "gun": 4, "mag": 5, "max_stack": 1, "color": Color("7A4E2C"), "mark": "K98", "icon": "🗡️", "desc": "Bolt rifle. One shot, long pause."},
+	"gun_hex": {"id": "gun_hex", "name": "Ray Gun", "kind": "gun", "gun": 5, "mag": 12, "max_stack": 1, "color": Color("FF6A22"), "mark": "RG", "icon": "☢️", "desc": "Orange-purple plasma. Burns on hit."},
+	"gun_frost": {"id": "gun_frost", "name": "MP40", "kind": "gun", "gun": 6, "mag": 16, "max_stack": 1, "color": Color("4A4E52"), "mark": "40", "icon": "⚡", "desc": "German SMG. Stitches a line."},
 	"bat": {"id": "bat", "name": "Porch Bat", "kind": "melee", "max_stack": 1, "color": Color("C48A4A"), "mark": "BAT", "icon": "🦇", "desc": "A swing that pops heads if you get close."},
-	"ammo": {"id": "ammo", "name": "Candy Caps", "kind": "ammo", "max_stack": 64, "color": Color("FFE27A"), "mark": "CAP", "icon": "🍬", "desc": "Reload candy for every gun."},
+	"ammo": {"id": "ammo", "name": "Ammo Can", "kind": "ammo", "max_stack": 64, "color": Color("C4A05A"), "mark": "AM", "icon": "📦", "desc": "Reload every gun."},
 	"candy": {"id": "candy", "name": "Candy", "kind": "candy", "max_stack": 64, "color": Color("FF8A3A"), "mark": "YUM", "icon": "🍭", "desc": "Spent to build fences and traps."},
 	"heart": {"id": "heart", "name": "Pumpkin Tart", "kind": "heal", "max_stack": 8, "color": Color("E56BA0"), "mark": "HP", "icon": "🥧", "desc": "Eat to mend a hunter heart."},
 	"oil": {"id": "oil", "name": "Lantern Oil", "kind": "oil", "max_stack": 8, "color": Color("FFB347"), "mark": "OIL", "icon": "🛢️", "desc": "Pour into the keep to restore flame."},

@@ -53,35 +53,43 @@ func setup(p_kind: String, p_keep: Node3D, p_hunter: Node3D, p_wave: int = 1) ->
 		"runner":
 			core = 5
 			speed = 5.15
-			skin = Color("8FB05A")
+			skin = Color("8A7A62")
 			shirt = Color("4A3220")
 		"lunk":
 			core = 22
 			speed = 1.65
-			skin = Color("5A6A48")
+			skin = Color("6A7A58")
 			shirt = Color("3A3020")
 		"mayor":
 			core = 48
 			speed = 1.9
-			skin = Color("7A8A5A")
+			skin = Color("8A8A72")
 			shirt = Color("2A2438")
+		"skel":
+			core = 7
+			speed = 2.85
+			skin = Color("E4DCC0")
+			shirt = Color("5A4030")
 		_:
 			core = 8
 			speed = 2.45
-			skin = Color("6E8A4A")
+			skin = Color("7A8A62")
 			shirt = Color("3A4630")
 	max_core = core
 	# Wave 1 is a crawl (~26% of cap). Speed ramps linearly and hard-caps at wave 12.
 	var t := clampf(float(wave - 1) / 11.0, 0.0, 1.0)
 	speed *= lerpf(0.26, 1.0, t) * randf_range(0.94, 1.06)
-	skin = skin.lerp(Color("4A5A38"), randf() * 0.25)
+	if kind != "skel":
+		var rot: Array[Color] = [Color("7A8A62"), Color("8A7A68"), Color("6E7A58"), Color("9A8880"), Color("6A6258")]
+		skin = rot[randi() % rot.size()].lerp(Color("4A5A38"), randf() * 0.22)
 
 
 func _ready() -> void:
 	add_to_group("zed")
 	collision_layer = 4
-	collision_mask = 1 | 16 | 32
-	floor_snap_length = 0.2
+	collision_mask = 1 | 16
+	floor_snap_length = 0.55
+	floor_max_angle = deg_to_rad(62.0)
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	sc = 1.0
@@ -91,6 +99,8 @@ func _ready() -> void:
 		sc = 1.55
 	elif kind == "runner":
 		sc = 0.88
+	elif kind == "skel":
+		sc = 1.04
 	cap.radius = 0.38 * sc
 	cap.height = 1.2 * sc
 	cs.shape = cap
@@ -158,51 +168,68 @@ func _refresh_hp() -> void:
 func _build() -> void:
 	vis = Node3D.new()
 	add_child(vis)
+	if kind == "skel":
+		_build_skel()
+		return
 	if kind == "shambler":
-		vis.rotation.x = 0.18
+		vis.rotation.x = 0.12
 	elif kind == "runner":
-		vis.rotation.x = 0.28
-	var pants := shirt.darkened(0.18)
-	var bone := Color("C8C4A8")
-	var ink := Color("1A1814")
-	var glow := Color("FFE27A")
-	# hips
+		vis.rotation.x = 0.34
+	elif kind == "lunk":
+		vis.rotation.x = 0.08
+	var pants := shirt.darkened(0.22)
+	var bone := Color("D8D0B4")
+	var rot := skin.darkened(0.18)
+	var blood := Color("4A1814")
+	# hips / torso
 	_part("torso", _limb(Vector3(0, 0.78, 0) * sc), 99)
 	var torso: Node3D = parts["torso"]["node"]
-	_box(torso, Vector3(0, 0.02, 0.02) * sc, Vector3(0.46, 0.5, 0.3) * sc, shirt)
-	_box(torso, Vector3(0, -0.18, 0.0) * sc, Vector3(0.4, 0.18, 0.26) * sc, pants)
-	_box(torso, Vector3(-0.12, 0.08, 0.16) * sc, Vector3(0.16, 0.22, 0.06) * sc, shirt.lightened(0.08))
+	_cyl(torso, Vector3(0, 0.34, 0.02) * sc, Vector3(0.12, 0.16, 0.12) * sc, skin)
 	if kind == "lunk":
-		_box(torso, Vector3(0, 0.08, 0) * sc, Vector3(0.62, 0.55, 0.42) * sc, shirt)
-		_box(torso, Vector3(-0.28, 0.28, 0.02) * sc, Vector3(0.22, 0.16, 0.28) * sc, Color("4A4030"))
-		_box(torso, Vector3(0.28, 0.28, 0.02) * sc, Vector3(0.22, 0.16, 0.28) * sc, Color("4A4030"))
-	if kind == "mayor":
-		_box(torso, Vector3(0, 0.04, -0.06) * sc, Vector3(0.52, 0.62, 0.22) * sc, shirt)
-		_box(torso, Vector3(-0.16, -0.22, -0.12) * sc, Vector3(0.16, 0.4, 0.08) * sc, shirt)
-		_box(torso, Vector3(0.16, -0.22, -0.12) * sc, Vector3(0.16, 0.4, 0.08) * sc, shirt)
-		_box(torso, Vector3(0, 0.08, 0.16) * sc, Vector3(0.38, 0.08, 0.04) * sc, Color("C4A24A"))
-	if kind == "runner":
-		_box(torso, Vector3(0, 0.18, -0.02) * sc, Vector3(0.38, 0.28, 0.32) * sc, Color("3A2A20"))
-	# head
-	_part("head", _limb(Vector3(0, 1.28, 0.06) * sc), 3 if kind == "lunk" or kind == "mayor" else 2)
-	var head: Node3D = parts["head"]["node"]
-	if kind == "lunk":
-		_ball(head, Vector3(0, 0.02, 0) * sc, 0.28 * sc, Color("E07020"), true)
-		_box(head, Vector3(-0.08, 0.02, 0.22) * sc, Vector3(0.08, 0.05, 0.04) * sc, ink)
-		_box(head, Vector3(0.08, 0.02, 0.22) * sc, Vector3(0.08, 0.05, 0.04) * sc, ink)
-		_box(head, Vector3(0, -0.08, 0.22) * sc, Vector3(0.14, 0.04, 0.04) * sc, ink)
-		_cyl(head, Vector3(0, 0.28, 0) * sc, Vector3(0.05, 0.16, 0.05) * sc, Color("3A8A3A"))
+		_box(torso, Vector3(0, 0.06, 0.02) * sc, Vector3(0.58, 0.52, 0.38) * sc, shirt)
+		_ball(torso, Vector3(0, -0.06, 0.12) * sc, 0.22 * sc, rot)
+		_box(torso, Vector3(-0.26, 0.22, 0.04) * sc, Vector3(0.2, 0.14, 0.24) * sc, shirt.darkened(0.1))
+		_box(torso, Vector3(0.26, 0.22, 0.04) * sc, Vector3(0.2, 0.14, 0.24) * sc, shirt.darkened(0.1))
+		_box(torso, Vector3(0, -0.22, 0.0) * sc, Vector3(0.5, 0.2, 0.3) * sc, pants)
+	elif kind == "mayor":
+		_box(torso, Vector3(0, 0.08, -0.04) * sc, Vector3(0.5, 0.62, 0.28) * sc, shirt)
+		_box(torso, Vector3(-0.18, -0.18, -0.1) * sc, Vector3(0.16, 0.48, 0.08) * sc, shirt)
+		_box(torso, Vector3(0.18, -0.18, -0.1) * sc, Vector3(0.16, 0.48, 0.08) * sc, shirt)
+		_box(torso, Vector3(0, 0.12, 0.14) * sc, Vector3(0.36, 0.08, 0.04) * sc, Color("C4A24A"))
+		_box(torso, Vector3(0, -0.02, 0.12) * sc, Vector3(0.22, 0.28, 0.06) * sc, Color("3A2A48"))
+		_box(torso, Vector3(0, -0.22, 0.0) * sc, Vector3(0.4, 0.18, 0.26) * sc, Color("1A1520"))
 	else:
-		_ball(head, Vector3(0, 0.02, 0) * sc, 0.26 * sc, skin)
-		_box(head, Vector3(0, -0.12, 0.08) * sc, Vector3(0.18, 0.1, 0.16) * sc, skin.darkened(0.08))
-		_box(head, Vector3(-0.08, 0.04, 0.2) * sc, Vector3(0.1, 0.08, 0.06) * sc, ink)
-		_box(head, Vector3(0.08, 0.04, 0.2) * sc, Vector3(0.1, 0.08, 0.06) * sc, ink)
-		_ball(head, Vector3(-0.08, 0.04, 0.22) * sc, 0.05 * sc, glow, true)
-		_ball(head, Vector3(0.08, 0.04, 0.22) * sc, 0.05 * sc, glow, true)
-		_box(head, Vector3(0, -0.14, 0.16) * sc, Vector3(0.14, 0.04, 0.08) * sc, bone)
-		_box(head, Vector3(-0.1, 0.1, 0.04) * sc, Vector3(0.08, 0.03, 0.16) * sc, ink)
+		_box(torso, Vector3(0, 0.06, 0.02) * sc, Vector3(0.42, 0.46, 0.26) * sc, shirt)
+		_box(torso, Vector3(0, -0.2, 0.0) * sc, Vector3(0.38, 0.16, 0.24) * sc, pants)
+		_box(torso, Vector3(0, 0.04, 0.14) * sc, Vector3(0.22, 0.26, 0.05) * sc, skin)
+		for i in 4:
+			_box(torso, Vector3(0, 0.16 - i * 0.07, 0.16) * sc, Vector3(0.2, 0.024, 0.03) * sc, bone)
+		_box(torso, Vector3(-0.08, -0.04, 0.14) * sc, Vector3(0.1, 0.12, 0.04) * sc, blood)
+		if kind == "runner":
+			_box(torso, Vector3(0, 0.16, -0.02) * sc, Vector3(0.34, 0.22, 0.28) * sc, Color("3A2A20"))
+			_box(torso, Vector3(0.1, 0.02, 0.12) * sc, Vector3(0.12, 0.2, 0.06) * sc, rot)
+	_box(torso, Vector3(-0.2, 0.24, 0.0) * sc, Vector3(0.12, 0.08, 0.18) * sc, skin)
+	_box(torso, Vector3(0.2, 0.24, 0.0) * sc, Vector3(0.12, 0.08, 0.18) * sc, skin)
+	# head
+	_part("head", _limb(Vector3(0, 1.3, 0.05) * sc), 3 if kind == "lunk" or kind == "mayor" else 2)
+	var head: Node3D = parts["head"]["node"]
+	_ball(head, Vector3(0, 0.04, 0.02) * sc, (0.24 if kind == "lunk" else 0.21) * sc, skin)
+	_box(head, Vector3(0, -0.12, 0.06) * sc, Vector3(0.16, 0.12, 0.16) * sc, rot)
+	_box(head, Vector3(-0.08, 0.05, 0.17) * sc, Vector3(0.09, 0.07, 0.06) * sc, Color("1C1410"))
+	_box(head, Vector3(0.08, 0.05, 0.17) * sc, Vector3(0.09, 0.07, 0.06) * sc, Color("1C1410"))
+	_ball(head, Vector3(-0.08, 0.05, 0.2) * sc, 0.032 * sc, Color("C8C090"))
+	_ball(head, Vector3(0.08, 0.05, 0.2) * sc, 0.032 * sc, Color("C8C090"))
+	_ball(head, Vector3(-0.08, 0.05, 0.22) * sc, 0.014 * sc, Color("1A120C"))
+	_ball(head, Vector3(0.08, 0.05, 0.22) * sc, 0.014 * sc, Color("1A120C"))
+	_box(head, Vector3(0, 0.02, 0.2) * sc, Vector3(0.05, 0.07, 0.06) * sc, rot)
+	_box(head, Vector3(-0.21, 0.04, 0.0) * sc, Vector3(0.04, 0.08, 0.05) * sc, skin)
+	_box(head, Vector3(0.21, 0.04, 0.0) * sc, Vector3(0.04, 0.08, 0.05) * sc, skin)
+	_box(head, Vector3(0, -0.16, 0.14) * sc, Vector3(0.12, 0.03, 0.04) * sc, blood)
+	_box(head, Vector3(0, -0.13, 0.15) * sc, Vector3(0.1, 0.024, 0.03) * sc, bone)
+	_box(head, Vector3(0.02, 0.18, -0.02) * sc, Vector3(0.26, 0.06, 0.22) * sc, Color("2A221C"))
+	_box(head, Vector3(-0.1, 0.02, 0.08) * sc, Vector3(0.08, 0.1, 0.04) * sc, rot.darkened(0.1))
 	if kind == "mayor":
-		_part("hat", _limb(Vector3(0, 1.52, 0.04) * sc), 2)
+		_part("hat", _limb(Vector3(0, 1.54, 0.04) * sc), 2)
 		var hat: Node3D = parts["hat"]["node"]
 		_cyl(hat, Vector3(0, 0.12, 0) * sc, Vector3(0.28, 0.28, 0.28) * sc, Color("1A1520"))
 		_cyl(hat, Vector3(0, 0.0, 0) * sc, Vector3(0.42, 0.05, 0.42) * sc, Color("1A1520"))
@@ -212,29 +239,99 @@ func _build() -> void:
 	arm_r = _limb(Vector3(0.28, 0.98, 0.04) * sc)
 	_part("arm_l", arm_l, 2)
 	_part("arm_r", arm_r, 2)
-	_box(arm_l, Vector3(0, 0, 0) * sc, Vector3(0.16, 0.16, 0.16) * sc, shirt)
-	_cap(arm_l, Vector3(-0.04, -0.2, 0.06) * sc, Vector3(0.14, 0.36, 0.14) * sc, skin)
-	_cap(arm_l, Vector3(-0.02, -0.42, 0.1) * sc, Vector3(0.12, 0.28, 0.12) * sc, skin)
-	_box(arm_l, Vector3(-0.04, -0.56, 0.16) * sc, Vector3(0.1, 0.08, 0.16) * sc, skin.darkened(0.1))
-	_box(arm_r, Vector3(0, 0, 0) * sc, Vector3(0.16, 0.16, 0.16) * sc, shirt)
-	_cap(arm_r, Vector3(0.04, -0.2, 0.06) * sc, Vector3(0.14, 0.36, 0.14) * sc, skin)
-	_cap(arm_r, Vector3(0.02, -0.42, 0.12) * sc, Vector3(0.12, 0.28, 0.12) * sc, skin)
-	_box(arm_r, Vector3(0.04, -0.56, 0.18) * sc, Vector3(0.1, 0.08, 0.16) * sc, skin.darkened(0.1))
-	arm_l.rotation_degrees.x = 18.0 if kind != "runner" else 40.0
-	arm_r.rotation_degrees.x = -8.0 if kind != "runner" else 28.0
-	arm_l.rotation_degrees.z = 16.0
+	_box(arm_l, Vector3(0, 0, 0) * sc, Vector3(0.14, 0.14, 0.14) * sc, shirt)
+	_cap(arm_l, Vector3(-0.03, -0.18, 0.05) * sc, Vector3(0.13, 0.34, 0.13) * sc, skin)
+	_cap(arm_l, Vector3(-0.02, -0.4, 0.1) * sc, Vector3(0.11, 0.26, 0.11) * sc, skin)
+	_box(arm_l, Vector3(-0.04, -0.54, 0.16) * sc, Vector3(0.1, 0.07, 0.14) * sc, rot)
+	_box(arm_l, Vector3(-0.06, -0.56, 0.22) * sc, Vector3(0.03, 0.03, 0.08) * sc, skin)
+	_box(arm_l, Vector3(-0.02, -0.56, 0.22) * sc, Vector3(0.03, 0.03, 0.09) * sc, skin)
+	_box(arm_l, Vector3(0.02, -0.56, 0.21) * sc, Vector3(0.03, 0.03, 0.07) * sc, skin)
+	_box(arm_r, Vector3(0, 0, 0) * sc, Vector3(0.14, 0.14, 0.14) * sc, shirt)
+	_cap(arm_r, Vector3(0.03, -0.18, 0.05) * sc, Vector3(0.13, 0.34, 0.13) * sc, skin)
+	_cap(arm_r, Vector3(0.02, -0.4, 0.12) * sc, Vector3(0.11, 0.26, 0.11) * sc, skin)
+	_box(arm_r, Vector3(0.04, -0.54, 0.18) * sc, Vector3(0.1, 0.07, 0.14) * sc, rot)
+	_box(arm_r, Vector3(0.06, -0.56, 0.24) * sc, Vector3(0.03, 0.03, 0.08) * sc, skin)
+	_box(arm_r, Vector3(0.02, -0.56, 0.24) * sc, Vector3(0.03, 0.03, 0.09) * sc, skin)
+	_box(arm_r, Vector3(-0.02, -0.56, 0.22) * sc, Vector3(0.03, 0.03, 0.07) * sc, skin)
+	arm_l.rotation_degrees.x = 22.0 if kind != "runner" else 42.0
+	arm_r.rotation_degrees.x = -10.0 if kind != "runner" else 30.0
+	arm_l.rotation_degrees.z = 14.0
 	arm_r.rotation_degrees.z = -12.0
 	# legs
 	leg_l = _limb(Vector3(-0.12, 0.62, 0.0) * sc)
 	leg_r = _limb(Vector3(0.12, 0.62, 0.0) * sc)
 	_part("leg_l", leg_l, 2)
 	_part("leg_r", leg_r, 2)
-	_cap(leg_l, Vector3(0, -0.16, 0.02) * sc, Vector3(0.16, 0.32, 0.16) * sc, pants)
-	_cap(leg_l, Vector3(0, -0.4, 0.04) * sc, Vector3(0.14, 0.26, 0.14) * sc, pants)
-	_box(leg_l, Vector3(0, -0.56, 0.06) * sc, Vector3(0.16, 0.1, 0.26) * sc, ink)
-	_cap(leg_r, Vector3(0, -0.16, 0.02) * sc, Vector3(0.16, 0.32, 0.16) * sc, pants)
-	_cap(leg_r, Vector3(0, -0.4, 0.04) * sc, Vector3(0.14, 0.26, 0.14) * sc, pants)
-	_box(leg_r, Vector3(0, -0.56, 0.06) * sc, Vector3(0.16, 0.1, 0.26) * sc, Color("3A2A1C") if kind != "runner" else Color("4A2018"))
+	_cap(leg_l, Vector3(0, -0.16, 0.02) * sc, Vector3(0.15, 0.32, 0.15) * sc, pants)
+	_cap(leg_l, Vector3(0, -0.4, 0.04) * sc, Vector3(0.13, 0.26, 0.13) * sc, pants)
+	_box(leg_l, Vector3(0, -0.56, 0.07) * sc, Vector3(0.16, 0.1, 0.26) * sc, Color("2A1C14"))
+	_cap(leg_r, Vector3(0, -0.16, 0.02) * sc, Vector3(0.15, 0.32, 0.15) * sc, pants)
+	_cap(leg_r, Vector3(0, -0.4, 0.04) * sc, Vector3(0.13, 0.26, 0.13) * sc, pants)
+	_box(leg_r, Vector3(0, -0.56, 0.07) * sc, Vector3(0.16, 0.1, 0.26) * sc, Color("3A2418") if kind != "runner" else Color("4A2018"))
+	_box(leg_r, Vector3(0.02, -0.28, 0.08) * sc, Vector3(0.08, 0.16, 0.04) * sc, rot)
+
+
+func _build_skel() -> void:
+	var bone := Color("E8E0C4")
+	var dark := Color("C8C0A4")
+	var rust := Color("6A3A22")
+	var ink := Color("1A1410")
+	var glow := Color("C43A32")
+	vis.rotation.x = 0.04
+	_part("torso", _limb(Vector3(0, 0.8, 0) * sc), 99)
+	var torso: Node3D = parts["torso"]["node"]
+	_cyl(torso, Vector3(0, 0.08, 0) * sc, Vector3(0.07, 0.42, 0.07) * sc, bone)
+	_box(torso, Vector3(0, -0.16, 0) * sc, Vector3(0.32, 0.1, 0.18) * sc, dark)
+	_box(torso, Vector3(0, 0.28, 0) * sc, Vector3(0.28, 0.08, 0.16) * sc, bone)
+	for i in 5:
+		var y := 0.18 - i * 0.07
+		_box(torso, Vector3(0, y, 0.1) * sc, Vector3(0.28 - i * 0.02, 0.03, 0.04) * sc, bone)
+		_box(torso, Vector3(-0.12, y, 0.02) * sc, Vector3(0.04, 0.03, 0.16) * sc, dark)
+		_box(torso, Vector3(0.12, y, 0.02) * sc, Vector3(0.04, 0.03, 0.16) * sc, dark)
+	_box(torso, Vector3(0, -0.22, 0.02) * sc, Vector3(0.22, 0.08, 0.12) * sc, rust)
+	_box(torso, Vector3(-0.18, 0.26, 0.02) * sc, Vector3(0.14, 0.08, 0.18) * sc, rust)
+	_box(torso, Vector3(0.2, 0.24, 0.02) * sc, Vector3(0.1, 0.06, 0.14) * sc, rust)
+	_part("head", _limb(Vector3(0, 1.32, 0.04) * sc), 2)
+	var head: Node3D = parts["head"]["node"]
+	_ball(head, Vector3(0, 0.06, 0.0) * sc, 0.2 * sc, bone)
+	_box(head, Vector3(0, -0.1, 0.04) * sc, Vector3(0.16, 0.1, 0.14) * sc, dark)
+	_box(head, Vector3(-0.07, 0.06, 0.16) * sc, Vector3(0.08, 0.07, 0.05) * sc, ink)
+	_box(head, Vector3(0.07, 0.06, 0.16) * sc, Vector3(0.08, 0.07, 0.05) * sc, ink)
+	_ball(head, Vector3(-0.07, 0.06, 0.18) * sc, 0.028 * sc, glow, true)
+	_ball(head, Vector3(0.07, 0.06, 0.18) * sc, 0.028 * sc, glow, true)
+	_box(head, Vector3(0, 0.02, 0.18) * sc, Vector3(0.04, 0.06, 0.05) * sc, dark)
+	_box(head, Vector3(0, -0.14, 0.12) * sc, Vector3(0.14, 0.04, 0.08) * sc, bone)
+	for t in 5:
+		_box(head, Vector3(-0.08 + t * 0.04, -0.12, 0.16) * sc, Vector3(0.028, 0.05, 0.03) * sc, Color("F4F0DC"))
+	_box(head, Vector3(0, 0.2, 0.0) * sc, Vector3(0.22, 0.06, 0.22) * sc, rust)
+	_box(head, Vector3(0, 0.16, 0.12) * sc, Vector3(0.16, 0.04, 0.08) * sc, rust)
+	arm_l = _limb(Vector3(-0.26, 1.02, 0.02) * sc)
+	arm_r = _limb(Vector3(0.26, 1.02, 0.02) * sc)
+	_part("arm_l", arm_l, 2)
+	_part("arm_r", arm_r, 2)
+	_cyl(arm_l, Vector3(-0.02, -0.16, 0.04) * sc, Vector3(0.05, 0.32, 0.05) * sc, bone)
+	_cyl(arm_l, Vector3(-0.02, -0.4, 0.1) * sc, Vector3(0.045, 0.28, 0.045) * sc, dark)
+	_box(arm_l, Vector3(-0.02, -0.54, 0.14) * sc, Vector3(0.08, 0.06, 0.1) * sc, bone)
+	_cyl(arm_r, Vector3(0.02, -0.16, 0.04) * sc, Vector3(0.05, 0.32, 0.05) * sc, bone)
+	_cyl(arm_r, Vector3(0.02, -0.4, 0.1) * sc, Vector3(0.045, 0.28, 0.045) * sc, dark)
+	_box(arm_r, Vector3(0.02, -0.54, 0.16) * sc, Vector3(0.08, 0.06, 0.1) * sc, bone)
+	_box(arm_r, Vector3(0.04, -0.42, 0.42) * sc, Vector3(0.05, 0.05, 0.72) * sc, Color("4A5058"))
+	_box(arm_r, Vector3(0.04, -0.42, 0.78) * sc, Vector3(0.02, 0.12, 0.22) * sc, Color("8A9098"))
+	_box(arm_r, Vector3(0.04, -0.42, 0.08) * sc, Vector3(0.07, 0.08, 0.12) * sc, rust)
+	arm_l.rotation_degrees.x = 8.0
+	arm_r.rotation_degrees.x = -72.0
+	arm_l.rotation_degrees.z = 18.0
+	arm_r.rotation_degrees.z = -8.0
+	leg_l = _limb(Vector3(-0.1, 0.58, 0.0) * sc)
+	leg_r = _limb(Vector3(0.1, 0.58, 0.0) * sc)
+	_part("leg_l", leg_l, 2)
+	_part("leg_r", leg_r, 2)
+	_cyl(leg_l, Vector3(0, -0.16, 0.02) * sc, Vector3(0.055, 0.32, 0.055) * sc, bone)
+	_cyl(leg_l, Vector3(0, -0.4, 0.04) * sc, Vector3(0.05, 0.28, 0.05) * sc, dark)
+	_box(leg_l, Vector3(0, -0.56, 0.08) * sc, Vector3(0.1, 0.06, 0.18) * sc, rust)
+	_cyl(leg_r, Vector3(0, -0.16, 0.02) * sc, Vector3(0.055, 0.32, 0.055) * sc, bone)
+	_cyl(leg_r, Vector3(0, -0.4, 0.04) * sc, Vector3(0.05, 0.28, 0.05) * sc, dark)
+	_box(leg_r, Vector3(0, -0.56, 0.08) * sc, Vector3(0.1, 0.06, 0.18) * sc, rust)
 
 
 func _part(id: String, n: Node3D, hp: int) -> void:
@@ -336,7 +433,7 @@ func _physics_process(delta: float) -> void:
 			hp_root.visible = false
 	groan_t -= delta
 	if groan_t <= 0.0:
-		AudioDirector.play_at("groan", global_position, randf_range(0.7, 1.15) * (0.8 if sc > 1.2 else 1.0))
+		AudioDirector.play_at("groan", global_position, randf_range(0.7, 1.15) * (0.8 if sc > 1.2 else 1.0) * (1.35 if kind == "skel" else 1.0))
 		groan_t = randf_range(3.5, 7.5)
 	if not is_on_floor():
 		velocity.y -= 26.0 * delta
@@ -375,10 +472,16 @@ func _physics_process(delta: float) -> void:
 		var swing := sin(walk_t) * 0.45
 		if kind == "runner":
 			swing *= 1.25
-		if arm_l and parts.has("arm_l") and parts["arm_l"]["on"]:
-			arm_l.rotation.x = deg_to_rad(18.0) + swing
-		if arm_r and parts.has("arm_r") and parts["arm_r"]["on"]:
-			arm_r.rotation.x = deg_to_rad(-8.0) - swing
+		if kind == "skel":
+			if arm_l and parts.has("arm_l") and parts["arm_l"]["on"]:
+				arm_l.rotation.x = deg_to_rad(10.0) + swing * 0.35
+			if arm_r and parts.has("arm_r") and parts["arm_r"]["on"]:
+				arm_r.rotation.x = deg_to_rad(-70.0)
+		else:
+			if arm_l and parts.has("arm_l") and parts["arm_l"]["on"]:
+				arm_l.rotation.x = deg_to_rad(18.0) + swing
+			if arm_r and parts.has("arm_r") and parts["arm_r"]["on"]:
+				arm_r.rotation.x = deg_to_rad(-8.0) - swing
 		if leg_l and parts.has("leg_l") and parts["leg_l"]["on"]:
 			leg_l.rotation.x = swing * 0.8
 		if leg_r and parts.has("leg_r") and parts["leg_r"]["on"]:
@@ -391,36 +494,20 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 7.5
 		AudioDirector.play_at("whoom", global_position, 0.8)
 
-	var blocked := _front_build(dir)
-	if blocked and blocked.has_method("chew"):
+	var reach := 1.72 if kind == "skel" else 1.55
+	if hunter and is_instance_valid(hunter) and global_position.distance_to(hunter.global_position) < reach:
 		velocity.x = 0.0
 		velocity.z = 0.0
-		if chew_cd <= 0.0:
-			chew_cd = 0.7
-			blocked.chew(4)
+		if swipe_cd <= 0.0:
+			swipe_cd = 1.05
 			_lunge()
-			AudioDirector.play_at("chew", global_position, randf_range(0.9, 1.2))
-	elif keep and global_position.distance_to(keep.global_position) < 2.4:
-		velocity.x = 0.0
-		velocity.z = 0.0
-		if chew_cd <= 0.0 and keep.has_method("chew"):
-			chew_cd = 0.85
-			keep.chew(3 if kind != "lunk" else 6)
-			_lunge()
+			if hunter.has_method("receive_hit"):
+				hunter.receive_hit(self, 1, 7.5)
+			AudioDirector.play_at("whoosh", global_position, 0.7)
 	else:
-		if hunter and is_instance_valid(hunter) and _wants_hunter() and global_position.distance_to(hunter.global_position) < 1.55:
-			velocity.x = 0.0
-			velocity.z = 0.0
-			if swipe_cd <= 0.0:
-				swipe_cd = 1.05
-				_lunge()
-				if hunter.has_method("receive_hit"):
-					hunter.receive_hit(self, 1, 7.5)
-				AudioDirector.play_at("whoosh", global_position, 0.7)
-		else:
-			var accel := 16.0 if kind == "runner" else 9.0
-			velocity.x = move_toward(velocity.x, dir.x * spd, accel * delta)
-			velocity.z = move_toward(velocity.z, dir.z * spd, accel * delta)
+		var accel := 16.0 if kind == "runner" else 9.0
+		velocity.x = move_toward(velocity.x, dir.x * spd, accel * delta)
+		velocity.z = move_toward(velocity.z, dir.z * spd, accel * delta)
 	move_and_slide()
 	if air_slam and is_on_floor():
 		air_slam = false
@@ -460,37 +547,17 @@ func _separation() -> Vector3:
 
 
 func _goal() -> Vector3:
-	if hunter and is_instance_valid(hunter) and _wants_hunter():
+	if hunter and is_instance_valid(hunter):
 		return hunter.global_position
-	if keep:
-		return keep.global_position
-	return Vector3.ZERO
+	return global_position
 
 
 func _wants_hunter() -> bool:
-	if hunter == null or not is_instance_valid(hunter):
-		return false
-	var hd: float = global_position.distance_to(hunter.global_position)
-	if kind == "runner":
-		return hd < 12.0
-	if keep:
-		var kd: float = global_position.distance_to(keep.global_position)
-		return hd < 4.5 and hd + 1.5 < kd
-	return hd < 4.0
+	return hunter != null and is_instance_valid(hunter)
 
 
-func _front_build(dir: Vector3) -> Node:
-	var q := PhysicsRayQueryParameters3D.create(global_position + Vector3(0, 0.7, 0), global_position + Vector3(0, 0.7, 0) + dir * 1.35)
-	q.collision_mask = 16
-	q.exclude = [get_rid()]
-	var hit := get_world_3d().direct_space_state.intersect_ray(q)
-	if hit and hit.get("collider") is Node:
-		return hit.get("collider")
-	return null
-
-
-func start_chew(node: Node) -> void:
-	chewing = node
+func start_chew(_node: Node) -> void:
+	pass
 
 
 func apply_slow(t: float) -> void:
@@ -645,7 +712,7 @@ func _die() -> void:
 func _mat(c: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
-	m.roughness = 0.7
+	m.roughness = 0.86 if kind != "skel" else 0.42
 	m.rim_enabled = true
 	m.rim = 0.32
 	mats.append(m)

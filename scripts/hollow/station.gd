@@ -92,7 +92,7 @@ func try_use() -> bool:
 			world._show("ALREADY HAVE  %s" % title)
 		return true
 	if kind == "wall" and hunter and _owns_gun(hunter, id):
-		var ammo_cost := maxi(250, int(cost / 2))
+		var ammo_cost := maxi(40, int(cost / 2))
 		if not world.has_method("spend_coins") or not world.spend_coins(ammo_cost):
 			if world.has_method("_show"):
 				world._show("NEED  %d  COINS" % ammo_cost)

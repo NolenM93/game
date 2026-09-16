@@ -134,88 +134,65 @@ func _building(pad: Vector3, yaw: float, style: String) -> void:
 
 
 func _shell(n: Node3D, hull: Material, trim: Color, title: String, sub: String) -> void:
-	# Three-storey hollow hull. Door on +Z, rear door on -Z, side doors to the fire escape.
-	var comb := CSGCombiner3D.new()
-	comb.use_collision = true
-	n.add_child(comb)
-	_csg(comb, Vector3(0, 5.55, 0), Vector3(11.6, 11.1, 11.0), hull, CSGShape3D.OPERATION_UNION)
-	# Carve walkable rooms; leftover 0.24 m slabs become the floors.
-	_csg(comb, Vector3(0, 1.75, 0), Vector3(11.05, 3.26, 10.45), plaster, CSGShape3D.OPERATION_SUBTRACTION)
-	_csg(comb, Vector3(0, 5.25, 0), Vector3(11.05, 3.26, 10.45), plaster, CSGShape3D.OPERATION_SUBTRACTION)
-	_csg(comb, Vector3(0, 8.62, 0), Vector3(11.05, 2.72, 10.45), plaster, CSGShape3D.OPERATION_SUBTRACTION)
-	# Stairwell holes through 2nd and attic floors (west strip).
-	_csg(comb, Vector3(-4.7, 3.5, -1.15), Vector3(1.95, 0.5, 6.4), plaster, CSGShape3D.OPERATION_SUBTRACTION)
-	_csg(comb, Vector3(-4.7, 6.98, 1.7), Vector3(1.95, 0.5, 5.6), plaster, CSGShape3D.OPERATION_SUBTRACTION)
-	# Front / rear doors (hunter capsule is 0.68 wide, 1.55 tall).
-	_csg(comb, Vector3(0, 1.18, 5.5), Vector3(1.9, 2.36, 0.7), plaster, CSGShape3D.OPERATION_SUBTRACTION)
-	_csg(comb, Vector3(0, 1.18, -5.5), Vector3(1.9, 2.36, 0.7), plaster, CSGShape3D.OPERATION_SUBTRACTION)
-	# Fire-escape doors on the east wall, 2nd and attic.
-	_csg(comb, Vector3(5.55, 4.7, 2.15), Vector3(0.7, 2.15, 1.35), plaster, CSGShape3D.OPERATION_SUBTRACTION)
-	_csg(comb, Vector3(5.55, 8.15, 2.15), Vector3(0.7, 2.05, 1.35), plaster, CSGShape3D.OPERATION_SUBTRACTION)
-	# Window holes you can look (and shoot) through.
-	var cuts: Array = [
-		[Vector3(-3.45, 1.95, 5.5), Vector3(1.25, 1.4, 0.7), false],
-		[Vector3(3.45, 1.95, 5.5), Vector3(1.25, 1.4, 0.7), false],
-		[Vector3(-3.45, 5.35, 5.5), Vector3(1.25, 1.35, 0.7), false],
-		[Vector3(0.0, 5.35, 5.5), Vector3(1.25, 1.35, 0.7), false],
-		[Vector3(3.45, 5.35, 5.5), Vector3(1.25, 1.35, 0.7), false],
-		[Vector3(-3.45, 8.45, 5.5), Vector3(1.2, 1.2, 0.7), false],
-		[Vector3(3.45, 8.45, 5.5), Vector3(1.2, 1.2, 0.7), false],
-		[Vector3(-2.5, 5.35, -5.5), Vector3(1.2, 1.35, 0.7), false],
-		[Vector3(2.5, 5.35, -5.5), Vector3(1.2, 1.35, 0.7), false],
-		[Vector3(-2.5, 8.45, -5.5), Vector3(1.15, 1.2, 0.7), false],
-		[Vector3(-5.8, 1.95, -2.15), Vector3(0.7, 1.4, 1.2), true],
-		[Vector3(-5.8, 5.35, 1.55), Vector3(0.7, 1.35, 1.2), true],
-		[Vector3(-5.8, 8.45, -1.4), Vector3(0.7, 1.2, 1.15), true],
-		[Vector3(5.8, 1.95, 1.35), Vector3(0.7, 1.4, 1.2), true],
-		[Vector3(5.8, 5.35, -2.05), Vector3(0.7, 1.35, 1.2), true],
-		[Vector3(5.8, 8.45, -1.8), Vector3(0.7, 1.2, 1.15), true],
-	]
+	# Stencil shop: separate wall / floor boxes. No CSG combiner — its trimesh
+	# was filling the stairwell. West well stays a real hole on every storey.
+	_wall_front(n, hull, 5.52)
+	_wall_front(n, hull, -5.52)
+	_box(Vector3(-5.72, 5.5, 0), Vector3(0.4, 11.0, 11.04), Color("4A3428"), true, hull, n)
+	_east_wall(n, hull)
+	_floors(n)
 	var pane := _lit(Color("FFB070", 0.38), 0.85)
 	var night := _lit(Color("7EC8E8", 0.26), 0.4)
+	var cuts: Array = [
+		[Vector3(-3.45, 1.95, 5.72), Vector3(1.25, 1.4, 0.06), false],
+		[Vector3(3.45, 1.95, 5.72), Vector3(1.25, 1.4, 0.06), false],
+		[Vector3(-3.45, 5.35, 5.72), Vector3(1.25, 1.35, 0.06), false],
+		[Vector3(0.0, 5.35, 5.72), Vector3(1.25, 1.35, 0.06), false],
+		[Vector3(3.45, 5.35, 5.72), Vector3(1.25, 1.35, 0.06), false],
+		[Vector3(-3.45, 8.45, 5.72), Vector3(1.2, 1.2, 0.06), false],
+		[Vector3(3.45, 8.45, 5.72), Vector3(1.2, 1.2, 0.06), false],
+		[Vector3(-2.5, 5.35, -5.72), Vector3(1.2, 1.35, 0.06), false],
+		[Vector3(2.5, 5.35, -5.72), Vector3(1.2, 1.35, 0.06), false],
+		[Vector3(-2.5, 8.45, -5.72), Vector3(1.15, 1.2, 0.06), false],
+		[Vector3(-5.94, 1.95, -2.15), Vector3(0.06, 1.4, 1.2), true],
+		[Vector3(-5.94, 5.35, 1.55), Vector3(0.06, 1.35, 1.2), true],
+		[Vector3(-5.94, 8.45, -1.4), Vector3(0.06, 1.2, 1.15), true],
+		[Vector3(5.94, 1.95, 1.35), Vector3(0.06, 1.4, 1.2), true],
+		[Vector3(5.94, 5.35, -2.05), Vector3(0.06, 1.35, 1.2), true],
+		[Vector3(5.94, 8.45, -1.8), Vector3(0.06, 1.2, 1.15), true],
+	]
 	for i in cuts.size():
 		var cut: Array = cuts[i]
-		var p: Vector3 = cut[0]
-		var sz: Vector3 = cut[1]
-		_csg(comb, p, sz, plaster, CSGShape3D.OPERATION_SUBTRACTION)
-		_window(n, p, pane if p.y < 3.5 else night, cut[2] as bool)
-	_board(n, Vector3(-5.82, 1.95, 2.45), true)
-	_board(n, Vector3(5.82, 5.35, 2.25), true)
-	# False-front parapet so the street face reads taller than the roof.
-	_box(Vector3(0, 11.35, 5.42), Vector3(12.2, 1.85, 0.38), Color("2A1C14"), true, hull, n)
-	_box(Vector3(0, 12.35, 5.42), Vector3(12.6, 0.22, 0.5), trim, false, null, n)
-	_box(Vector3(-5.7, 11.9, 5.42), Vector3(0.28, 1.1, 0.48), trim, false, null, n)
-	_box(Vector3(5.7, 11.9, 5.42), Vector3(0.28, 1.1, 0.48), trim, false, null, n)
-	# Roof deck, chimney, rusted flashing.
+		_window(n, cut[0], pane if (cut[0] as Vector3).y < 3.5 else night, cut[2] as bool)
+	_board(n, Vector3(-5.94, 1.95, 2.45), true)
+	_board(n, Vector3(5.94, 5.35, 2.25), true)
+	_box(Vector3(0, 11.35, 5.52), Vector3(12.2, 1.85, 0.38), Color("2A1C14"), true, hull, n)
+	_box(Vector3(0, 12.35, 5.52), Vector3(12.6, 0.22, 0.5), trim, false, null, n)
+	_box(Vector3(-5.7, 11.9, 5.52), Vector3(0.28, 1.1, 0.48), trim, false, null, n)
+	_box(Vector3(5.7, 11.9, 5.52), Vector3(0.28, 1.1, 0.48), trim, false, null, n)
 	_box(Vector3(0, 11.18, -0.2), Vector3(12.6, 0.2, 11.6), Color("2A2420"), true, rust, n)
 	_box(Vector3(0, 11.32, -0.4), Vector3(10.6, 0.14, 9.6), Color("3A2A22"), false, rust, n)
 	_box(Vector3(-4.15, 12.15, -3.5), Vector3(1.15, 1.7, 0.95), Color("4A3A32"), true, brick, n)
 	_box(Vector3(-4.15, 13.1, -3.5), Vector3(1.35, 0.18, 1.15), Color("2A1C14"), false, null, n)
 	_cyl(Vector3(-4.15, 13.35, -3.5), 0.12, 0.4, Color("1A140E"), n)
-	# Awning over the front door.
-	_box(Vector3(0, 3.38, 5.9), Vector3(4.6, 0.12, 1.55), trim, false, null, n)
-	_cyl(Vector3(-1.75, 1.66, 6.4), 0.09, 3.3, Color("2A1C14"), n)
-	_cyl(Vector3(1.75, 1.66, 6.4), 0.09, 3.3, Color("2A1C14"), n)
-	_box(Vector3(0, 3.58, 5.58), Vector3(5.0, 0.58, 0.16), trim, false, null, n)
+	_box(Vector3(0, 3.38, 5.95), Vector3(4.6, 0.12, 1.55), trim, false, null, n)
+	_cyl(Vector3(-1.75, 1.66, 6.45), 0.09, 3.3, Color("2A1C14"), n)
+	_cyl(Vector3(1.75, 1.66, 6.45), 0.09, 3.3, Color("2A1C14"), n)
+	_box(Vector3(0, 3.58, 5.68), Vector3(5.0, 0.58, 0.16), trim, false, null, n)
 	var sign := Label3D.new()
 	sign.text = "%s\n%s" % [title, sub]
 	sign.font_size = 34
 	sign.outline_size = 6
-	sign.position = Vector3(0, 3.58, 5.75)
+	sign.position = Vector3(0, 3.58, 5.82)
 	sign.modulate = Color("FFE27A")
 	if Art.font_title:
 		sign.font = Art.font_title
 	n.add_child(sign)
-	# Door frames + threshold so the cut edges don't look raw.
-	_box(Vector3(-1.02, 1.2, 5.48), Vector3(0.12, 2.4, 0.22), Color("2A1C14"), false, wood, n)
-	_box(Vector3(1.02, 1.2, 5.48), Vector3(0.12, 2.4, 0.22), Color("2A1C14"), false, wood, n)
-	_box(Vector3(0, 2.42, 5.48), Vector3(2.16, 0.12, 0.22), Color("2A1C14"), false, wood, n)
-	_box(Vector3(0, 0.06, 5.7), Vector3(2.2, 0.1, 1.1), Color("3A2A22"), true, wood, n)
-	_box(Vector3(0, 0.06, -5.7), Vector3(2.2, 0.1, 1.1), Color("3A2A22"), true, wood, n)
-	# Baseboards / floor runners.
-	_box(Vector3(0, 0.05, 0), Vector3(10.9, 0.08, 10.3), Color("4A3428"), false, wood, n)
-	_box(Vector3(1.0, 3.62, 0), Vector3(8.9, 0.06, 10.3), Color("4A3428"), false, wood, n)
-	_box(Vector3(1.0, 7.1, 0), Vector3(8.9, 0.06, 10.3), Color("4A3428"), false, wood, n)
+	_box(Vector3(-1.02, 1.2, 5.52), Vector3(0.12, 2.4, 0.22), Color("2A1C14"), false, wood, n)
+	_box(Vector3(1.02, 1.2, 5.52), Vector3(0.12, 2.4, 0.22), Color("2A1C14"), false, wood, n)
+	_box(Vector3(0, 2.42, 5.52), Vector3(2.16, 0.12, 0.22), Color("2A1C14"), false, wood, n)
+	_box(Vector3(0, 0.06, 5.75), Vector3(2.2, 0.1, 1.1), Color("3A2A22"), true, wood, n)
+	_box(Vector3(0, 0.06, -5.75), Vector3(2.2, 0.1, 1.1), Color("3A2A22"), true, wood, n)
 
 
 func _window(n: Node3D, pos: Vector3, mat: Material, side: bool = false) -> void:
@@ -243,23 +220,41 @@ func _board(n: Node3D, pos: Vector3, side: bool = false) -> void:
 			_box(pos + Vector3(0, o, 0.02), Vector3(1.32, 0.1, 0.14), Color("3A2418"), false, null, n)
 
 
+func _wall_front(n: Node3D, hull: Material, z: float) -> void:
+	# Split around a 1.9 x 2.28 door so the hunter capsule fits cleanly.
+	_box(Vector3(-3.35, 5.5, z), Vector3(4.74, 11.0, 0.4), Color("4A3428"), true, hull, n)
+	_box(Vector3(3.35, 5.5, z), Vector3(4.74, 11.0, 0.4), Color("4A3428"), true, hull, n)
+	_box(Vector3(0.0, 6.64, z), Vector3(2.0, 8.72, 0.4), Color("4A3428"), true, hull, n)
+
+
+func _east_wall(n: Node3D, hull: Material) -> void:
+	# Fire-escape doors at 2nd and attic. Hunter needs 1.35 wide, 2.1 tall.
+	_box(Vector3(5.72, 5.5, -2.06), Vector3(0.4, 11.0, 6.92), Color("4A3428"), true, hull, n)
+	_box(Vector3(5.72, 5.5, 4.21), Vector3(0.4, 11.0, 2.62), Color("4A3428"), true, hull, n)
+	_box(Vector3(5.72, 1.68, 2.15), Vector3(0.4, 3.36, 1.5), Color("4A3428"), true, hull, n)
+	_box(Vector3(5.72, 6.48, 2.15), Vector3(0.4, 1.28, 1.5), Color("4A3428"), true, hull, n)
+	_box(Vector3(5.72, 10.02, 2.15), Vector3(0.4, 1.96, 1.5), Color("4A3428"), true, hull, n)
+
+
+func _floors(n: Node3D) -> void:
+	# Ground is solid. Upper floors stop at x = -3.0 so the west well is empty.
+	_box(Vector3(0.0, 0.06, 0.0), Vector3(11.04, 0.12, 10.64), Color("4A3428"), true, wood, n)
+	_box(Vector3(1.26, 3.52, 0.0), Vector3(8.52, 0.14, 10.64), Color("4A3428"), true, wood, n)
+	_box(Vector3(1.26, 7.04, 0.0), Vector3(8.52, 0.14, 10.64), Color("4A3428"), true, wood, n)
+	# Landings inside the well, flush with each floor.
+	_box(Vector3(-4.08, 3.52, 1.65), Vector3(2.48, 0.14, 2.0), Color("5A3A24"), true, wood, n)
+	_box(Vector3(-4.08, 7.04, -4.05), Vector3(2.48, 0.14, 2.2), Color("5A3A24"), true, wood, n)
+
+
 func _stairs(n: Node3D) -> void:
-	# First flight: west wall, rear toward mid. 0.38 m risers — under hunter step height.
-	for i in 9:
-		var y := 0.18 + i * 0.38
-		var z := -4.45 + i * 0.46
-		_box(Vector3(-4.72, y, z), Vector3(1.55, 0.38, 0.52), Color("5A3A24"), true, wood, n)
-	_box(Vector3(-4.72, 3.55, 0.35), Vector3(1.55, 0.16, 1.7), Color("5A3A24"), true, wood, n)
-	for i in 9:
-		var y2 := 3.72 + i * 0.38
-		var z2 := 0.85 + i * 0.44
-		_box(Vector3(-4.72, y2, z2), Vector3(1.55, 0.38, 0.5), Color("5A3A24"), true, wood, n)
-	_box(Vector3(-4.72, 7.08, 4.55), Vector3(1.55, 0.14, 1.2), Color("5A3A24"), true, wood, n)
-	_box(Vector3(-3.95, 1.55, -1.6), Vector3(0.08, 2.9, 4.6), Color("3A2A1C"), true, wood, n)
-	_box(Vector3(-4.0, 5.2, 2.2), Vector3(0.08, 3.0, 5.2), Color("3A2A1C"), true, wood, n)
-	_box(Vector3(-3.95, 3.7, -0.2), Vector3(0.08, 0.1, 5.0), Color("C4A05A"), false, null, n)
-	_box(Vector3(-3.95, 7.15, 2.4), Vector3(0.08, 0.1, 4.6), Color("C4A05A"), false, null, n)
-	_crate(n, Vector3(-4.7, 0.08, -4.55))
+	# Open west well. Closed-riser flights + a walk-ramp under them. No solid
+	# well-wall — that slab was the brown plane you walked through.
+	var sx := -4.15
+	var w := 2.18
+	_stair_flight(n, sx, 0.12, -4.48, 12, 0.283, 0.44, 1.0, w, wood, false)
+	_stair_flight(n, sx, 3.52, 1.42, 12, 0.293, 0.44, -1.0, w, wood, false)
+	_well_rail(n, -3.04, 3.52, -5.05, 0.4)
+	_well_rail(n, -3.04, 7.04, -2.8, 1.5)
 
 
 func _upper_floors(n: Node3D, style: String) -> void:
@@ -287,75 +282,142 @@ func _upper_floors(n: Node3D, style: String) -> void:
 	_crate(n, Vector3(3.4, 7.18, 3.9))
 	_crate(n, Vector3(4.5, 7.18, 2.7))
 	_table(n, Vector3(3.2, 7.18, 0.2), 1.3, 0.7)
-	_barrel(n, Vector3(-2.6, 7.18, -3.8))
-	_barrel(n, Vector3(-3.4, 7.18, -4.2))
+	_barrel(n, Vector3(3.5, 7.18, -3.6))
+	_barrel(n, Vector3(4.2, 7.18, -4.0))
 	_loot(n, Vector3(3.6, 7.95, -3.4), "ammo")
 	_loot(n, Vector3(4.1, 7.7, 3.3), "candy")
 
 
 func _fire_escape(n: Node3D) -> void:
-	# Climbable rust stairs on the east wall — 0.5 m risers, under step height.
-	for i in 22:
-		var y := 0.12 + i * 0.5
-		var z := 3.35 - i * 0.18
-		_box(Vector3(6.22, y, z), Vector3(1.18, 0.1, 0.58), Color("4A3A32"), true, rust, n)
-		if i % 2 == 0:
-			_box(Vector3(6.72, y + 0.45, z), Vector3(0.06, 0.9, 0.06), Color("3A2A22"), false, rust, n)
-			_box(Vector3(5.78, y + 0.45, z), Vector3(0.06, 0.9, 0.06), Color("3A2A22"), false, rust, n)
-	_box(Vector3(6.22, 4.05, 1.95), Vector3(1.25, 0.1, 1.7), Color("4A3A32"), true, rust, n)
-	_box(Vector3(6.22, 7.5, 1.95), Vector3(1.25, 0.1, 1.7), Color("4A3A32"), true, rust, n)
-	_box(Vector3(6.22, 11.2, -0.35), Vector3(1.3, 0.1, 1.8), Color("4A3A32"), true, rust, n)
-	_box(Vector3(6.72, 5.6, 1.4), Vector3(0.06, 11.2, 0.06), Color("3A2A22"), false, rust, n)
+	# Compact Z-switchback on the east wall, door (z=2.15) to the front corner.
+	var x := 6.62
+	var w := 1.32
+	_box(Vector3(x, 0.08, 2.15), Vector3(w, 0.12, 1.7), Color("4A3A32"), true, rust, n)
+	_stair_flight(n, x, 0.08, 2.88, 10, 0.344, 0.26, 1.0, w, rust, true)
+	_box(Vector3(x, 3.52, 5.42), Vector3(w, 0.12, 1.35), Color("4A3A32"), true, rust, n)
+	_box(Vector3(x, 3.52, 3.72), Vector3(w, 0.12, 3.6), Color("4A3A32"), true, rust, n)
+	_stair_flight(n, x, 3.52, 5.18, 10, 0.352, 0.30, -1.0, w, rust, true)
+	_box(Vector3(x, 7.04, 2.15), Vector3(w, 0.12, 1.8), Color("4A3A32"), true, rust, n)
+	_stair_flight(n, x, 7.04, 2.88, 10, 0.414, 0.26, 1.0, w, rust, true)
+	_box(Vector3(x, 11.18, 5.42), Vector3(w, 0.12, 1.35), Color("4A3A32"), true, rust, n)
+	_well_rail(n, x + 0.64, 3.52, 1.9, 5.9, true)
+	_well_rail(n, x + 0.64, 7.04, 1.4, 3.0, true)
+	_box(Vector3(x + 0.64, 5.7, 2.15), Vector3(0.05, 11.2, 0.05), Color("3A2A22"), false, rust, n)
+	_box(Vector3(x - 0.64, 5.7, 2.15), Vector3(0.05, 11.2, 0.05), Color("3A2A22"), false, rust, n)
+
+
+func _stair_flight(n: Node3D, x: float, y0: float, z0: float, steps: int, rise: float, run: float, dir: float, width: float, mat: Material, rusty: bool) -> void:
+	var y1 := y0 + float(steps) * rise
+	var z1 := z0 + float(steps) * run * dir
+	_col_ramp(n, x, y0, z0, y1, z1, width)
+	var col := Color("4A3A32") if rusty else Color("5A3A24")
+	for i in steps:
+		var y_top := y0 + float(i + 1) * rise
+		var z_mid := z0 + (float(i) + 0.5) * run * dir
+		_box(Vector3(x, y_top - 0.04, z_mid), Vector3(width, 0.08, run + 0.05), col, false, mat, n)
+		var z_r := z0 + float(i) * run * dir
+		_box(Vector3(x, y0 + float(i) * rise + rise * 0.5, z_r), Vector3(width, rise, 0.05), col, false, mat, n)
+	var hx := width * 0.5 - 0.03
+	_stringer(n, x - hx, y0, z0, y1, z1, mat, col)
+	_stringer(n, x + hx, y0, z0, y1, z1, mat, col)
+
+
+func _stringer(n: Node3D, x: float, y0: float, z0: float, y1: float, z1: float, mat: Material, col: Color) -> void:
+	var za := minf(z0, z1)
+	var zb := maxf(z0, z1)
+	var ya := y0 if z0 <= z1 else y1
+	var yb := y1 if z0 <= z1 else y0
+	var dz := zb - za
+	var dy := yb - ya
+	var length := sqrt(dz * dz + dy * dy)
+	var ang := -atan2(dy, dz)
+	_box(Vector3(x, (ya + yb) * 0.5, (za + zb) * 0.5), Vector3(0.07, 0.22, length), col, false, mat, n, 0.0, ang)
+
+
+func _col_ramp(n: Node3D, x: float, y0: float, z0: float, y1: float, z1: float, width: float) -> void:
+	var za := minf(z0, z1)
+	var zb := maxf(z0, z1)
+	var ya := y0 if z0 <= z1 else y1
+	var yb := y1 if z0 <= z1 else y0
+	var dz := zb - za
+	var dy := yb - ya
+	var length := sqrt(dz * dz + dy * dy)
+	var ang := -atan2(dy, dz)
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.position = Vector3(x, (ya + yb) * 0.5 - 0.06 * cos(ang), (za + zb) * 0.5)
+	body.rotation.x = ang
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(width, 0.16, length)
+	cs.shape = box
+	body.add_child(cs)
+	n.add_child(body)
+
+
+func _well_rail(n: Node3D, x: float, y: float, z0: float, z1: float, rusty: bool = false) -> void:
+	var za := minf(z0, z1)
+	var zb := maxf(z0, z1)
+	var h := 0.9
+	var col := Color("3A2A22") if rusty else Color("3A2A1C")
+	var mat: Material = rust if rusty else wood
+	var z := za
+	while z <= zb + 0.01:
+		_box(Vector3(x, y + h * 0.5, z), Vector3(0.045, h, 0.045), col, false, mat, n)
+		z += 0.55
+	_box(Vector3(x, y + h, (za + zb) * 0.5), Vector3(0.045, 0.05, zb - za + 0.1), col, false, mat, n)
+
 
 
 func _fit_store(n: Node3D) -> void:
 	# Shop floor: long counters and aisles of shelves to duck behind.
-	_counter(n, Vector3(0.0, 0.0, 3.2), 6.4)
-	_shelf(n, Vector3(-3.6, 0.0, 0.6), 0.0)
-	_shelf(n, Vector3(-3.6, 0.0, -0.8), 0.0)
+	_counter(n, Vector3(0.5, 0.0, 3.2), 5.4)
+	_shelf(n, Vector3(-1.7, 0.0, 0.6), 0.0)
+	_shelf(n, Vector3(-1.7, 0.0, -0.8), 0.0)
 	_shelf(n, Vector3(3.6, 0.0, 0.6), PI)
 	_shelf(n, Vector3(3.6, 0.0, -0.8), PI)
 	_partition(n, -1.15)
-	_crate(n, Vector3(-3.8, 0.08, -3.4))
-	_crate(n, Vector3(-3.0, 0.08, -3.8))
+	_crate(n, Vector3(-1.5, 0.08, -3.4))
+	_crate(n, Vector3(-0.8, 0.08, -3.8))
 	_crate(n, Vector3(3.4, 0.08, -3.2))
-	_barrel(n, Vector3(-4.2, 0.08, 3.4))
-	_barrel(n, Vector3(-4.35, 0.08, 2.55))
+	_barrel(n, Vector3(4.2, 0.08, 3.4))
+	_barrel(n, Vector3(4.35, 0.08, 2.55))
 	_box(Vector3(1.6, 1.22, 3.15), Vector3(0.55, 0.28, 0.42), Color("2A2A30"), false, metal, n)
 	_table(n, Vector3(2.2, 0.08, -3.8), 1.6, 1.0)
 	_loot(n, Vector3(0.4, 0.95, 3.0), "ammo")
-	_loot(n, Vector3(-3.6, 1.2, 0.6), "candy")
+	_loot(n, Vector3(-1.7, 1.2, 0.6), "candy")
 	_loot(n, Vector3(3.2, 3.9, -3.6), "heart")
 
 
 func _fit_apoth(n: Node3D) -> void:
 	_counter(n, Vector3(1.2, 0.0, 2.8), 5.2)
-	_shelf(n, Vector3(-3.8, 0.0, 1.4), 0.0)
-	_shelf(n, Vector3(-3.8, 0.0, -0.2), 0.0)
+	_shelf(n, Vector3(-1.7, 0.0, 1.4), 0.0)
+	_shelf(n, Vector3(-1.7, 0.0, -0.2), 0.0)
 	_shelf(n, Vector3(3.9, 0.0, 0.4), PI)
 	_partition(n, -1.3)
-	_desk(n, Vector3(-2.4, 0.08, -3.6))
+	_desk(n, Vector3(-1.4, 0.08, -3.6))
 	_crate(n, Vector3(3.6, 0.08, -3.6))
 	for i in 12:
-		_sph(Vector3(-3.5, 1.15 + (i % 3) * 0.35, 1.25 - int(i / 3) * 0.28), 0.07, Color("7EC8E8") if i % 2 == 0 else Color("E56BA0"), n)
+		_sph(Vector3(-1.6, 1.15 + (i % 3) * 0.35, 1.25 - int(i / 3) * 0.28), 0.07, Color("7EC8E8") if i % 2 == 0 else Color("E56BA0"), n)
 	_cyl(Vector3(3.6, 0.55, -3.2), 0.42, 0.7, Color("3A2A22"), n, true)
 	_cyl(Vector3(3.6, 0.95, -3.2), 0.48, 0.12, Color("2A1C14"), n, false)
 	_loot(n, Vector3(1.0, 0.95, 2.6), "oil")
-	_loot(n, Vector3(-2.2, 0.9, -3.4), "heart")
+	_loot(n, Vector3(-1.4, 0.9, -3.4), "heart")
 	_loot(n, Vector3(3.8, 3.9, 3.4), "ammo")
 
 
 func _fit_diner(n: Node3D) -> void:
-	_counter(n, Vector3(-0.6, 0.0, 1.6), 7.2)
+	_counter(n, Vector3(0.6, 0.0, 1.6), 5.2)
 	for i in 4:
-		_stool(n, Vector3(-2.4 + i * 1.15, 0.08, 2.35))
+		_stool(n, Vector3(-1.6 + i * 1.15, 0.08, 2.35))
 	_booth(n, Vector3(3.5, 0.08, 3.4))
 	_booth(n, Vector3(3.5, 0.08, 1.3))
 	_partition(n, -1.0)
-	_box(Vector3(-3.4, 0.85, -3.2), Vector3(2.2, 1.6, 1.1), Color("4A5058"), true, metal, n)
-	_box(Vector3(-1.2, 0.7, -3.4), Vector3(1.6, 1.3, 0.9), Color("3A3A40"), true, metal, n)
+	_box(Vector3(-1.2, 0.85, -3.2), Vector3(1.6, 1.6, 1.1), Color("4A5058"), true, metal, n)
+	_box(Vector3(0.4, 0.7, -3.4), Vector3(1.6, 1.3, 0.9), Color("3A3A40"), true, metal, n)
 	_box(Vector3(2.6, 0.55, -3.5), Vector3(1.4, 1.0, 1.4), Color("6A3A22"), true, rust, n)
-	_cyl(Vector3(-3.9, 1.75, -2.85), 0.18, 0.35, Color("C45A38"), n, false)
+	_cyl(Vector3(-1.4, 1.75, -2.85), 0.18, 0.35, Color("C45A38"), n, false)
 	_box(Vector3(0.6, 1.15, -3.35), Vector3(1.1, 0.7, 0.55), Color("7EC8E8", 0.35), true, _lit(Color("7EC8E8", 0.28), 0.35), n)
 	_crate(n, Vector3(4.2, 0.08, -2.8))
 	_loot(n, Vector3(-0.4, 0.95, 1.4), "candy")
@@ -364,16 +426,16 @@ func _fit_diner(n: Node3D) -> void:
 
 
 func _fit_sheriff(n: Node3D) -> void:
-	_desk(n, Vector3(-2.2, 0.08, 2.6))
+	_desk(n, Vector3(-1.4, 0.08, 2.6))
 	_desk(n, Vector3(1.6, 0.08, 2.2))
 	_partition(n, -0.9)
-	# Jail cell in the back-left — bars with a squeeze gap you can hide in.
-	_box(Vector3(-4.7, 1.5, -3.35), Vector3(1.4, 3.0, 0.12), Color("3A3E44"), true, metal, n)
-	_box(Vector3(-1.85, 1.5, -4.4), Vector3(0.12, 3.0, 2.2), Color("3A3E44"), true, metal, n)
+	# Jail cell in the back-right — keep the west stairwell clear.
+	_box(Vector3(4.55, 1.5, -3.35), Vector3(1.4, 3.0, 0.12), Color("3A3E44"), true, metal, n)
+	_box(Vector3(2.85, 1.5, -4.4), Vector3(0.12, 3.0, 2.2), Color("3A3E44"), true, metal, n)
 	for i in 4:
-		_cyl(Vector3(-3.85 + i * 0.22, 1.5, -3.32), 0.035, 2.8, Color("4A5058"), n, false)
-	_bed(n, Vector3(-3.7, 0.08, -4.45))
-	_crate(n, Vector3(3.8, 0.08, -3.2))
+		_cyl(Vector3(3.2 + i * 0.22, 1.5, -3.32), 0.035, 2.8, Color("4A5058"), n, false)
+	_bed(n, Vector3(3.7, 0.08, -4.45))
+	_crate(n, Vector3(3.8, 0.08, -2.4))
 	_crate(n, Vector3(3.2, 0.08, 0.6))
 	_box(Vector3(4.4, 1.2, 0.4), Vector3(0.16, 2.2, 1.8), Color("3A2A1C"), true, wood, n)
 	var poster := Label3D.new()
@@ -385,16 +447,16 @@ func _fit_sheriff(n: Node3D) -> void:
 	if Art.font_title:
 		poster.font = Art.font_title
 	n.add_child(poster)
-	_loot(n, Vector3(-2.0, 0.85, 2.5), "ammo")
-	_loot(n, Vector3(-3.5, 0.55, -4.3), "heart")
+	_loot(n, Vector3(-1.4, 0.85, 2.5), "ammo")
+	_loot(n, Vector3(3.6, 0.55, -4.3), "heart")
 	_loot(n, Vector3(3.6, 3.9, 3.5), "ammo")
 
 
 func _partition(n: Node3D, z: float) -> void:
-	# Back-room wall with a 1.7 m doorway in the middle.
-	_box(Vector3(-3.6, 1.6, z), Vector3(4.6, 3.2, 0.16), Color("C8B8A0"), true, plaster, n)
+	# Back-room wall. Stops east of the well (x > -2.7).
+	_box(Vector3(-1.75, 1.6, z), Vector3(1.8, 3.2, 0.16), Color("C8B8A0"), true, plaster, n)
 	_box(Vector3(3.6, 1.6, z), Vector3(4.6, 3.2, 0.16), Color("C8B8A0"), true, plaster, n)
-	_box(Vector3(0, 2.95, z), Vector3(2.0, 0.5, 0.16), Color("C8B8A0"), true, plaster, n)
+	_box(Vector3(0.35, 2.95, z), Vector3(2.5, 0.5, 0.16), Color("C8B8A0"), true, plaster, n)
 
 
 func _counter(n: Node3D, pos: Vector3, wide: float) -> void:
@@ -639,16 +701,16 @@ func _stations() -> void:
 	for i in 6:
 		_box(Vector3(randf_range(-0.4, 0.4), 0.4 + i * 0.38, randf_range(-2.4, 2.4)), Vector3(0.22, 0.9, 1.8), Color("5A3A22"), true, wood, debris)
 	_box(Vector3(0, 1.5, 0), Vector3(0.8, 3.0, 6.4), Color("3A2A1C"), true, wood, debris)
-	var gate = _station("debris", "road", 750, "Clear the road", Vector3(21.5, gy, 0.0))
+	var gate = _station("debris", "road", 150, "Clear the road", Vector3(21.5, gy, 0.0))
 	gate.barrier = debris
-	_station("wall", "gun_nailer", 500, "Tomb Nailer", Vector3(38.4, gy, -7.6))
-	_station("wall", "gun_gloop", 750, "Gloop-O-Matic", Vector3(38.4, gy, 7.6))
-	_station("wall", "gun_frost", 1200, "Rime Nail", Vector3(57.6, gy, -7.6))
-	_station("wall", "gun_rocket", 1500, "Bottle Rocket", Vector3(57.6, gy, 7.6))
-	_station("perk", "jug", 2500, "Pumpkin Punch", Vector3(31.4, gy, -13.4))
-	_station("perk", "speed", 3000, "Sugar Rush", Vector3(64.6, gy, -13.4))
-	_station("perk", "double", 2000, "Double Tap", Vector3(31.4, gy, 13.4))
-	_station("perk", "revive", 500, "Quick Revive", Vector3(64.6, gy, 13.4))
+	_station("wall", "gun_nailer", 100, "Tommy Gun", Vector3(38.4, gy, -7.6))
+	_station("wall", "gun_gloop", 150, "M1 Garand", Vector3(38.4, gy, 7.6))
+	_station("wall", "gun_frost", 250, "MP40", Vector3(57.6, gy, -7.6))
+	_station("wall", "gun_rocket", 350, "Bazooka", Vector3(57.6, gy, 7.6))
+	_station("perk", "jug", 500, "Pumpkin Punch", Vector3(31.4, gy, -13.4))
+	_station("perk", "speed", 600, "Sugar Rush", Vector3(64.6, gy, -13.4))
+	_station("perk", "double", 400, "Double Tap", Vector3(31.4, gy, 13.4))
+	_station("perk", "revive", 100, "Quick Revive", Vector3(64.6, gy, 13.4))
 	_station("power", "power", 0, "Power", Vector3(48.0, gy, 1.7))
 
 
@@ -681,23 +743,15 @@ func _sign(pos: Vector3, text: String, size: int) -> void:
 	add_child(sign)
 
 
-func _box(pos: Vector3, size: Vector3, color: Color, coll: bool, mat: Material = null, host: Node = null, rot_y: float = 0.0) -> void:
+func _box(pos: Vector3, size: Vector3, color: Color, coll: bool, mat: Material = null, host: Node = null, rot_y: float = 0.0, rot_x: float = 0.0) -> void:
 	var b := CSGBox3D.new()
 	b.size = size
 	b.position = pos
 	b.rotation.y = rot_y
+	b.rotation.x = rot_x
 	b.material = mat if mat else _mat(color)
 	b.use_collision = coll
 	(host if host else self).add_child(b)
-
-
-func _csg(comb: CSGCombiner3D, pos: Vector3, size: Vector3, mat: Material, op: int) -> void:
-	var b := CSGBox3D.new()
-	b.size = size
-	b.position = pos
-	b.material = mat
-	b.operation = op
-	comb.add_child(b)
 
 
 func _cyl(pos: Vector3, radius: float, height: float, color: Color, host: Node = null, coll: bool = false) -> void:
