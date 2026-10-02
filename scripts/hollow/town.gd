@@ -2,6 +2,7 @@ class_name HollowTown
 extends Node3D
 
 const Station = preload("res://scripts/hollow/station.gd")
+const Elevator = preload("res://scripts/hollow/elevator.gd")
 
 var world: Node
 var asphalt: StandardMaterial3D
@@ -13,20 +14,20 @@ var rust: StandardMaterial3D
 var metal: StandardMaterial3D
 var tile: StandardMaterial3D
 var stations: Array = []
-var town_lamps: Array[OmniLight3D] = []
-var power_glow: Array[OmniLight3D] = []
+var town_lamps: Array = []
+var power_glow: Array = []
 
 
 func setup(p_world: Node) -> void:
 	world = p_world
-	asphalt = _noise([Color("1C1C20"), Color("2A2A30"), Color("3A3A42")], 0.08, 0.03, 19)
-	walk = _noise([Color("4A4842"), Color("5C5A52"), Color("6A6860")], 0.1, 0.04, 5)
-	brick = _noise([Color("5A2E28"), Color("6E3A32"), Color("8A4A3C")], 0.06, 0.022, 9)
-	wood = _noise([Color("3A2418"), Color("5A3A24"), Color("6E4A2C")], 0.11, 0.04, 14)
-	plaster = _noise([Color("C8B8A0"), Color("D4C6B0"), Color("B8A888")], 0.04, 0.02, 21)
-	rust = _noise([Color("4A2818"), Color("6A3A22"), Color("3A2014")], 0.12, 0.05, 8)
-	metal = _noise([Color("3A3E44"), Color("4A5058"), Color("2A2E32")], 0.09, 0.04, 3)
-	tile = _noise([Color("6A5A4A"), Color("8A7A68"), Color("5A4A3C")], 0.16, 0.06, 17)
+	asphalt = Art.surface("asphalt")
+	walk = Art.surface("walk")
+	brick = Art.surface("brick")
+	wood = Art.surface("wood")
+	plaster = Art.surface("plaster")
+	rust = Art.surface("rust")
+	metal = Art.surface("metal")
+	tile = Art.surface("roof")
 	_roads()
 	_intersection()
 	_shops()
@@ -112,15 +113,17 @@ func _building(pad: Vector3, yaw: float, style: String) -> void:
 			trim = Color("C4A05A")
 			title = "SHERIFF"
 			sub = "NO. 12"
-	var hull_m: Material = brick if style == "store" or style == "sheriff" else _mat(hull)
-	if style == "diner":
-		hull_m = _noise([Color("A84828"), Color("C45A38"), Color("8A3020")], 0.07, 0.03, 12)
+	var hull_m: Material = brick
 	if style == "apoth":
 		hull_m = plaster
+	elif style == "diner":
+		hull_m = Art.surface("brick_red")
+	elif style == "sheriff":
+		hull_m = Art.surface("brick_dark")
 	_shell(n, hull_m, trim, title, sub)
-	_stairs(n)
+	_elevator(n)
 	_upper_floors(n, style)
-	_fire_escape(n)
+	_ladder(n)
 	match style:
 		"store":
 			_fit_store(n)
@@ -141,8 +144,8 @@ func _shell(n: Node3D, hull: Material, trim: Color, title: String, sub: String) 
 	_box(Vector3(-5.72, 5.5, 0), Vector3(0.4, 11.0, 11.04), Color("4A3428"), true, hull, n)
 	_east_wall(n, hull)
 	_floors(n)
-	var pane := _lit(Color("FFB070", 0.38), 0.85)
-	var night := _lit(Color("7EC8E8", 0.26), 0.4)
+	var pane := Art.glass(Color("FFB070", 0.42), 0.55)
+	var night := Art.glass(Color("7EC8E8", 0.28), 0.22)
 	var cuts: Array = [
 		[Vector3(-3.45, 1.95, 5.72), Vector3(1.25, 1.4, 0.06), false],
 		[Vector3(3.45, 1.95, 5.72), Vector3(1.25, 1.4, 0.06), false],
@@ -170,7 +173,7 @@ func _shell(n: Node3D, hull: Material, trim: Color, title: String, sub: String) 
 	_box(Vector3(0, 12.35, 5.52), Vector3(12.6, 0.22, 0.5), trim, false, null, n)
 	_box(Vector3(-5.7, 11.9, 5.52), Vector3(0.28, 1.1, 0.48), trim, false, null, n)
 	_box(Vector3(5.7, 11.9, 5.52), Vector3(0.28, 1.1, 0.48), trim, false, null, n)
-	_box(Vector3(0, 11.18, -0.2), Vector3(12.6, 0.2, 11.6), Color("2A2420"), true, rust, n)
+	_box(Vector3(0, 11.18, -0.2), Vector3(12.6, 0.2, 11.6), Color("2A2420"), true, Art.surface("roof"), n)
 	_box(Vector3(0, 11.32, -0.4), Vector3(10.6, 0.14, 9.6), Color("3A2A22"), false, rust, n)
 	_box(Vector3(-4.15, 12.15, -3.5), Vector3(1.15, 1.7, 0.95), Color("4A3A32"), true, brick, n)
 	_box(Vector3(-4.15, 13.1, -3.5), Vector3(1.35, 0.18, 1.15), Color("2A1C14"), false, null, n)
@@ -228,7 +231,12 @@ func _wall_front(n: Node3D, hull: Material, z: float) -> void:
 
 
 func _east_wall(n: Node3D, hull: Material) -> void:
-	# Fire-escape doors at 2nd and attic. Hunter needs 1.35 wide, 2.1 tall.
+	# Ladder doors at 2nd and attic. Hunter needs 1.35 wide, 2.1 tall.
+	_box(Vector3(5.72, 5.5, -2.06), Vector3(0.4, 11.0, 6.92), Color("4A3428"), true, hull, n)
+	_box(Vector3(5.72, 5.5, 4.21), Vector3(0.4, 11.0, 2.62), Color("4A3428"), true, hull, n)
+	_box(Vector3(5.72, 1.68, 2.15), Vector3(0.4, 3.36, 1.5), Color("4A3428"), true, hull, n)
+	_box(Vector3(5.72, 6.48, 2.15), Vector3(0.4, 1.28, 1.5), Color("4A3428"), true, hull, n)
+	_box(Vector3(5.72, 10.02, 2.15), Vector3(0.4, 1.96, 1.5), Color("4A3428"), true, hull, n)
 	_box(Vector3(5.72, 5.5, -2.06), Vector3(0.4, 11.0, 6.92), Color("4A3428"), true, hull, n)
 	_box(Vector3(5.72, 5.5, 4.21), Vector3(0.4, 11.0, 2.62), Color("4A3428"), true, hull, n)
 	_box(Vector3(5.72, 1.68, 2.15), Vector3(0.4, 3.36, 1.5), Color("4A3428"), true, hull, n)
@@ -241,20 +249,22 @@ func _floors(n: Node3D) -> void:
 	_box(Vector3(0.0, 0.06, 0.0), Vector3(11.04, 0.12, 10.64), Color("4A3428"), true, wood, n)
 	_box(Vector3(1.26, 3.52, 0.0), Vector3(8.52, 0.14, 10.64), Color("4A3428"), true, wood, n)
 	_box(Vector3(1.26, 7.04, 0.0), Vector3(8.52, 0.14, 10.64), Color("4A3428"), true, wood, n)
-	# Landings inside the well, flush with each floor.
-	_box(Vector3(-4.08, 3.52, 1.65), Vector3(2.48, 0.14, 2.0), Color("5A3A24"), true, wood, n)
-	_box(Vector3(-4.08, 7.04, -4.05), Vector3(2.48, 0.14, 2.2), Color("5A3A24"), true, wood, n)
+	# Short dock so you can step onto the elevator car.
+	_box(Vector3(-3.08, 3.52, 0.0), Vector3(0.72, 0.14, 2.35), Color("5A3A24"), true, wood, n)
+	_box(Vector3(-3.08, 7.04, 0.0), Vector3(0.72, 0.14, 2.35), Color("5A3A24"), true, wood, n)
 
 
-func _stairs(n: Node3D) -> void:
-	# Open west well. Closed-riser flights + a walk-ramp under them. No solid
-	# well-wall — that slab was the brown plane you walked through.
-	var sx := -4.15
-	var w := 2.18
-	_stair_flight(n, sx, 0.12, -4.48, 12, 0.283, 0.44, 1.0, w, wood, false)
-	_stair_flight(n, sx, 3.52, 1.42, 12, 0.293, 0.44, -1.0, w, wood, false)
-	_well_rail(n, -3.04, 3.52, -5.05, 0.4)
-	_well_rail(n, -3.04, 7.04, -2.8, 1.5)
+func _elevator(n: Node3D) -> void:
+	var lift := Elevator.new()
+	n.add_child(lift)
+	lift.setup(PackedFloat32Array([0.14, 3.52, 7.04]), -4.20, 0.0)
+	_well_rail(n, -3.02, 3.52, -5.2, -1.32)
+	_well_rail(n, -3.02, 3.52, 1.32, 5.2)
+	_well_rail(n, -3.02, 7.04, -5.2, -1.32)
+	_well_rail(n, -3.02, 7.04, 1.32, 5.2)
+	for y in [0.14, 3.52, 7.04]:
+		_box(Vector3(-3.12, y + 1.12, 0.92), Vector3(0.08, 0.28, 0.18), Color("3A3A40"), false, metal, n)
+		_box(Vector3(-3.06, y + 1.18, 0.92), Vector3(0.04, 0.08, 0.08), Color("3AEA7A"), false, null, n)
 
 
 func _upper_floors(n: Node3D, style: String) -> void:
@@ -288,72 +298,35 @@ func _upper_floors(n: Node3D, style: String) -> void:
 	_loot(n, Vector3(4.1, 7.7, 3.3), "candy")
 
 
-func _fire_escape(n: Node3D) -> void:
-	# Compact Z-switchback on the east wall, door (z=2.15) to the front corner.
-	var x := 6.62
-	var w := 1.32
-	_box(Vector3(x, 0.08, 2.15), Vector3(w, 0.12, 1.7), Color("4A3A32"), true, rust, n)
-	_stair_flight(n, x, 0.08, 2.88, 10, 0.344, 0.26, 1.0, w, rust, true)
-	_box(Vector3(x, 3.52, 5.42), Vector3(w, 0.12, 1.35), Color("4A3A32"), true, rust, n)
-	_box(Vector3(x, 3.52, 3.72), Vector3(w, 0.12, 3.6), Color("4A3A32"), true, rust, n)
-	_stair_flight(n, x, 3.52, 5.18, 10, 0.352, 0.30, -1.0, w, rust, true)
-	_box(Vector3(x, 7.04, 2.15), Vector3(w, 0.12, 1.8), Color("4A3A32"), true, rust, n)
-	_stair_flight(n, x, 7.04, 2.88, 10, 0.414, 0.26, 1.0, w, rust, true)
-	_box(Vector3(x, 11.18, 5.42), Vector3(w, 0.12, 1.35), Color("4A3A32"), true, rust, n)
-	_well_rail(n, x + 0.64, 3.52, 1.9, 5.9, true)
-	_well_rail(n, x + 0.64, 7.04, 1.4, 3.0, true)
-	_box(Vector3(x + 0.64, 5.7, 2.15), Vector3(0.05, 11.2, 0.05), Color("3A2A22"), false, rust, n)
-	_box(Vector3(x - 0.64, 5.7, 2.15), Vector3(0.05, 11.2, 0.05), Color("3A2A22"), false, rust, n)
-
-
-func _stair_flight(n: Node3D, x: float, y0: float, z0: float, steps: int, rise: float, run: float, dir: float, width: float, mat: Material, rusty: bool) -> void:
-	var y1 := y0 + float(steps) * rise
-	var z1 := z0 + float(steps) * run * dir
-	_col_ramp(n, x, y0, z0, y1, z1, width)
-	var col := Color("4A3A32") if rusty else Color("5A3A24")
-	for i in steps:
-		var y_top := y0 + float(i + 1) * rise
-		var z_mid := z0 + (float(i) + 0.5) * run * dir
-		_box(Vector3(x, y_top - 0.04, z_mid), Vector3(width, 0.08, run + 0.05), col, false, mat, n)
-		var z_r := z0 + float(i) * run * dir
-		_box(Vector3(x, y0 + float(i) * rise + rise * 0.5, z_r), Vector3(width, rise, 0.05), col, false, mat, n)
-	var hx := width * 0.5 - 0.03
-	_stringer(n, x - hx, y0, z0, y1, z1, mat, col)
-	_stringer(n, x + hx, y0, z0, y1, z1, mat, col)
-
-
-func _stringer(n: Node3D, x: float, y0: float, z0: float, y1: float, z1: float, mat: Material, col: Color) -> void:
-	var za := minf(z0, z1)
-	var zb := maxf(z0, z1)
-	var ya := y0 if z0 <= z1 else y1
-	var yb := y1 if z0 <= z1 else y0
-	var dz := zb - za
-	var dy := yb - ya
-	var length := sqrt(dz * dz + dy * dy)
-	var ang := -atan2(dy, dz)
-	_box(Vector3(x, (ya + yb) * 0.5, (za + zb) * 0.5), Vector3(0.07, 0.22, length), col, false, mat, n, 0.0, ang)
-
-
-func _col_ramp(n: Node3D, x: float, y0: float, z0: float, y1: float, z1: float, width: float) -> void:
-	var za := minf(z0, z1)
-	var zb := maxf(z0, z1)
-	var ya := y0 if z0 <= z1 else y1
-	var yb := y1 if z0 <= z1 else y0
-	var dz := zb - za
-	var dy := yb - ya
-	var length := sqrt(dz * dz + dy * dy)
-	var ang := -atan2(dy, dz)
-	var body := StaticBody3D.new()
-	body.collision_layer = 1
-	body.collision_mask = 0
-	body.position = Vector3(x, (ya + yb) * 0.5 - 0.06 * cos(ang), (za + zb) * 0.5)
-	body.rotation.x = ang
+func _ladder(n: Node3D) -> void:
+	var x := 6.48
+	var z := 2.15
+	_box(Vector3(x, 0.08, z), Vector3(1.55, 0.12, 1.7), Color("4A3A32"), true, rust, n)
+	_box(Vector3(x, 3.52, z), Vector3(1.55, 0.12, 1.7), Color("4A3A32"), true, rust, n)
+	_box(Vector3(x, 7.04, z), Vector3(1.55, 0.12, 1.7), Color("4A3A32"), true, rust, n)
+	_box(Vector3(6.15, 11.18, z), Vector3(2.05, 0.14, 1.9), Color("4A3A32"), true, rust, n)
+	_box(Vector3(x + 0.72, 1.85, z), Vector3(0.05, 3.5, 1.7), Color("3A2A22"), false, rust, n)
+	_box(Vector3(x + 0.72, 5.28, z), Vector3(0.05, 3.4, 1.7), Color("3A2A22"), false, rust, n)
+	_box(Vector3(x + 0.72, 9.12, z), Vector3(0.05, 4.0, 1.7), Color("3A2A22"), false, rust, n)
+	_cyl(Vector3(x - 0.32, 5.7, z - 0.22), 0.04, 11.4, Color("3A2A22"), n, false)
+	_cyl(Vector3(x - 0.32, 5.7, z + 0.22), 0.04, 11.4, Color("3A2A22"), n, false)
+	var y := 0.28
+	while y < 11.2:
+		_box(Vector3(x - 0.32, y, z), Vector3(0.07, 0.045, 0.52), Color("4A3A32"), false, rust, n)
+		y += 0.32
+	var area := Area3D.new()
+	area.add_to_group("ladder")
+	area.collision_layer = 0
+	area.collision_mask = 2
+	area.monitoring = true
+	area.monitorable = false
+	area.position = Vector3(x - 0.28, 5.7, z)
 	var cs := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(width, 0.16, length)
+	box.size = Vector3(0.9, 11.5, 0.88)
 	cs.shape = box
-	body.add_child(cs)
-	n.add_child(body)
+	area.add_child(cs)
+	n.add_child(area)
 
 
 func _well_rail(n: Node3D, x: float, y: float, z0: float, z1: float, rusty: bool = false) -> void:
@@ -518,10 +491,11 @@ func _barrel(n: Node3D, pos: Vector3) -> void:
 
 
 func _glow_inside(n: Node3D) -> void:
-	_omni(n, Vector3(0, 2.8, 1.4), Color("FFB070"), 0.5, 9.0)
-	_omni(n, Vector3(2.4, 5.55, -2.4), Color("E8D2A0"), 0.38, 7.5)
-	_omni(n, Vector3(-2.2, 5.55, 2.6), Color("FFB070"), 0.32, 6.5)
-	_omni(n, Vector3(2.2, 8.7, 0.4), Color("E8D2A0"), 0.28, 6.0)
+	_omni(n, Vector3(0, 2.8, 1.4), Color("FFC090"), 0.7, 6.0)
+	_omni(n, Vector3(2.4, 5.55, -2.4), Color("E8D2A0"), 0.55, 5.0)
+	_omni(n, Vector3(-2.2, 5.55, 2.6), Color("FFB070"), 0.45, 4.5)
+	_omni(n, Vector3(2.2, 8.7, 0.4), Color("E8D2A0"), 0.4, 4.2)
+	_omni(n, Vector3(-4.2, 2.4, 0.0), Color("FFE0B0"), 0.35, 3.2)
 
 
 func _omni(n: Node3D, pos: Vector3, color: Color, energy: float, rng: float) -> void:
@@ -531,9 +505,9 @@ func _omni(n: Node3D, pos: Vector3, color: Color, energy: float, rng: float) -> 
 	lamp.light_energy = energy
 	lamp.omni_range = rng
 	lamp.shadow_enabled = false
+	lamp.light_volumetric_fog_energy = 0.08
 	n.add_child(lamp)
 	town_lamps.append(lamp)
-	power_glow.append(lamp)
 
 
 func _loot(n: Node3D, local: Vector3, id: String) -> void:
@@ -678,19 +652,32 @@ func _mail(pos: Vector3) -> void:
 
 func _lamp(xz: Vector3) -> void:
 	var gy := 0.72
-	_cyl(Vector3(xz.x, gy + 2.4, xz.z), 0.08, 4.8, Color("2A2A30"))
+	_cyl(Vector3(xz.x, gy + 2.4, xz.z), 0.07, 4.8, Color("2A2A30"))
 	_box(Vector3(xz.x, gy + 4.85, xz.z), Vector3(0.85, 0.14, 0.85), Color("3A3A40"), false, metal)
-	_cyl(Vector3(xz.x, gy + 4.55, xz.z), 0.22, 0.28, Color("E8D2A0"))
-	var lamp := OmniLight3D.new()
-	lamp.position = Vector3(xz.x, gy + 4.5, xz.z)
-	lamp.light_color = Color("E8D2A0")
-	lamp.light_energy = 0.45
-	lamp.omni_range = 11.0
+	_cyl(Vector3(xz.x, gy + 4.55, xz.z), 0.18, 0.22, Color("E8D2A0"))
+	var lamp := SpotLight3D.new()
+	lamp.position = Vector3(xz.x, gy + 4.48, xz.z)
+	lamp.rotation_degrees = Vector3(-90, 0, 0)
+	lamp.light_color = Color("FFD8A8")
+	lamp.light_energy = 2.0
+	lamp.spot_range = 12.0
+	lamp.spot_angle = 46.0
+	lamp.spot_attenuation = 1.15
+	lamp.shadow_enabled = true
+	lamp.shadow_blur = 1.4
+	lamp.light_volumetric_fog_energy = 0.3
 	add_child(lamp)
 	town_lamps.append(lamp)
 	power_glow.append(lamp)
 	if world:
 		world.lamp_posts.append(lamp)
+	var fill := OmniLight3D.new()
+	fill.position = Vector3(xz.x, gy + 4.4, xz.z)
+	fill.light_color = Color("E8C890")
+	fill.light_energy = 0.35
+	fill.omni_range = 8.0
+	fill.shadow_enabled = false
+	add_child(fill)
 
 
 func _stations() -> void:
@@ -726,9 +713,13 @@ func _station(kind: String, id: String, cost: int, title: String, pos: Vector3):
 
 func set_power(on: bool) -> void:
 	for l in power_glow:
-		if is_instance_valid(l):
-			l.light_energy = (2.8 if on else 0.4)
-			l.omni_range = 15.0 if on else 8.0
+		if not is_instance_valid(l):
+			continue
+		l.light_energy = (2.2 if on else 0.35)
+		if l is OmniLight3D:
+			(l as OmniLight3D).omni_range = 8.0 if on else 5.0
+		elif l is SpotLight3D:
+			(l as SpotLight3D).spot_range = 12.0 if on else 8.0
 
 
 func _sign(pos: Vector3, text: String, size: int) -> void:
@@ -794,24 +785,4 @@ func _lit(c: Color, energy: float) -> StandardMaterial3D:
 
 
 func _noise(ramp: Array, uv_scale: float, freq: float, seed_v: int) -> StandardMaterial3D:
-	var noise := FastNoiseLite.new()
-	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	noise.seed = seed_v
-	noise.frequency = freq
-	var tex := NoiseTexture2D.new()
-	tex.width = 256
-	tex.height = 256
-	tex.seamless = true
-	tex.noise = noise
-	var grad := Gradient.new()
-	grad.set_color(0, ramp[0])
-	grad.set_color(1, ramp[ramp.size() - 1])
-	for i in range(1, ramp.size() - 1):
-		grad.add_point(float(i) / float(ramp.size() - 1), ramp[i])
-	tex.color_ramp = grad
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = tex
-	m.uv1_triplanar = true
-	m.uv1_scale = Vector3(uv_scale, uv_scale, uv_scale)
-	m.roughness = 0.92
-	return m
+	return Art._noise_pbr(ramp, uv_scale, freq, seed_v, 0.86, 0.0, 6.0)

@@ -375,6 +375,8 @@ func _ball(parent: Node3D, pos: Vector3, r: float, color: Color, lit: bool = fal
 	var s := SphereMesh.new()
 	s.radius = r
 	s.height = r * 2.0
+	s.radial_segments = 14
+	s.rings = 10
 	mi.mesh = s
 	mi.position = pos
 	var m := _mat(color)
@@ -712,8 +714,25 @@ func _die() -> void:
 func _mat(c: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
-	m.roughness = 0.86 if kind != "skel" else 0.42
+	m.normal_enabled = true
+	m.normal_texture = Art.micro_normal()
+	m.normal_scale = 0.28
 	m.rim_enabled = true
-	m.rim = 0.32
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	if kind == "skel":
+		m.roughness = 0.38
+		m.metallic = 0.16
+		m.rim = 0.28
+		m.rim_tint = 0.55
+		m.clearcoat_enabled = true
+		m.clearcoat = 0.18
+		m.clearcoat_roughness = 0.4
+	else:
+		m.roughness = 0.58
+		m.subsurf_scatter_enabled = true
+		m.subsurf_scatter_strength = 0.42
+		m.subsurf_scatter_skin_mode = true
+		m.rim = 0.14
+		m.rim_tint = 0.35
 	mats.append(m)
 	return m

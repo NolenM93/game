@@ -9,6 +9,7 @@ var _spin := 0.7
 var vis: Node3D
 var _seated := false
 var _popping := false
+var _hovering := false
 
 
 func _ready() -> void:
@@ -47,6 +48,19 @@ func pop_out(land: Vector3) -> void:
 	)
 
 
+func rise_and_hover(hover: Vector3) -> void:
+	_hovering = true
+	_popping = true
+	_seated = false
+	var tw := create_tween()
+	tw.tween_property(self, "global_position", hover, 1.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		_popping = false
+		_base_y = position.y
+		_seated = true
+	)
+
+
 func _mesh() -> void:
 	vis = Node3D.new()
 	add_child(vis)
@@ -62,6 +76,10 @@ func _mesh() -> void:
 
 func _sit() -> void:
 	if not is_inside_tree() or _popping:
+		return
+	if _hovering:
+		_base_y = position.y
+		_seated = true
 		return
 	var from := global_position + Vector3(0, 1.4, 0)
 	var to := global_position + Vector3(0, -8.0, 0)
@@ -80,7 +98,7 @@ func _process(delta: float) -> void:
 		return
 	if vis:
 		vis.rotate_y(delta * _spin)
-	position.y = _base_y + sin(Time.get_ticks_msec() * 0.003 + float(get_instance_id() % 12)) * 0.05
+	position.y = _base_y + sin(Time.get_ticks_msec() * 0.003 + float(get_instance_id() % 12)) * (0.12 if _hovering else 0.05)
 
 
 func _grab(body: Node3D) -> void:

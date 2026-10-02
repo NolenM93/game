@@ -220,18 +220,23 @@ static func _sph(host: Node3D, pos: Vector3, radius: float, mat: Material) -> vo
 static func _steel(c: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
-	m.metallic = 0.72
-	m.roughness = 0.32
-	m.rim_enabled = true
-	m.rim = 0.22
+	m.metallic = 0.92
+	m.roughness = 0.22
+	m.clearcoat_enabled = true
+	m.clearcoat = 0.48
+	m.clearcoat_roughness = 0.2
+	m.anisotropy_enabled = true
+	m.anisotropy = 0.22
+	m.normal_enabled = true
+	m.normal_texture = Art.micro_normal()
+	m.normal_scale = 0.22
 	return m
 
 
 static func _wood(c: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
+	var m: StandardMaterial3D = Art.surface("wood").duplicate()
 	m.albedo_color = c
-	m.roughness = 0.78
-	m.metallic = 0.0
+	m.roughness = 0.62
 	return m
 
 

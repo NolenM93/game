@@ -65,9 +65,8 @@ func _ready() -> void:
 
 
 func _rock(c: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
+	var m: StandardMaterial3D = Art.surface("stone").duplicate()
 	m.albedo_color = c
-	m.roughness = 0.88
 	return m
 
 

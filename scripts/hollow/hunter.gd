@@ -72,6 +72,7 @@ var fire_cd := 0.0
 var reload_t := 0.0
 var melee_cd := 0.0
 var spawn := Vector3.ZERO
+var on_ladder := false
 var ghost: Node3D
 var ghost_mat: StandardMaterial3D
 var ghost_kind := ""
@@ -130,22 +131,19 @@ func _ready() -> void:
 func _look() -> void:
 	vis = Node3D.new()
 	add_child(vis)
-	var coat := _mat(Color("3A3226"), 0.72)
-	var lining := _mat(Color("5A2018"), 0.7)
-	var pants := _mat(Color("1C1E1A"), 0.78)
-	var skin := _mat(Color("C4A07A"), 0.55)
-	var ink := _mat(Color("121214"), 0.5, 0.25)
-	var strap := _mat(Color("1A140E"), 0.8)
-	var rust := _mat(Color("6A3A22"), 0.55, 0.2)
-	var boot := _mat(Color("141210"), 0.7)
-	var lens := _mat(Color("FF8A3A"), 0.18, 0.35)
-	lens.emission_enabled = true
-	lens.emission = Color("FF6A1A")
-	lens.emission_energy_multiplier = 2.6
+	var coat := Art.surface("leather")
+	var lining := _mat(Color("4A1814"), 0.68)
+	var pants := Art.surface("cloth")
+	var skin := Art.skin(Color("C4A07A"), 0.08)
+	var ink := _mat(Color("121214"), 0.42, 0.08)
+	var strap := Art.surface("leather")
+	var rust := Art.surface("rust")
+	var boot := _mat(Color("141210"), 0.58)
+	var lens := Art.glass(Color("1A2218", 0.55), 0.15)
 	var glow := _mat(Color("FFB347"), 0.35)
 	glow.emission_enabled = true
 	glow.emission = Color("FF8A3A")
-	glow.emission_energy_multiplier = 2.6
+	glow.emission_energy_multiplier = 1.1
 	_mesh(vis, BoxMesh.new(), Vector3(0, 0.86, 0.02), Vector3(0.42, 0.16, 0.28), pants)
 	_mesh(vis, BoxMesh.new(), Vector3(0, 0.94, 0.03), Vector3(0.46, 0.07, 0.32), strap)
 	_mesh(vis, BoxMesh.new(), Vector3(0.0, 0.94, 0.2), Vector3(0.1, 0.1, 0.08), rust)
@@ -217,11 +215,14 @@ func _look() -> void:
 	hand.add_child(flash_light)
 	lamp = SpotLight3D.new()
 	lamp.position = Vector3(0.08, 1.5, 0.22)
-	lamp.spot_range = 22.0
-	lamp.spot_angle = 32.0
-	lamp.light_energy = 2.1
-	lamp.light_color = Color("FFE6B0")
+	lamp.spot_range = 11.0
+	lamp.spot_angle = 26.0
+	lamp.light_energy = 1.7
+	lamp.spot_attenuation = 1.35
+	lamp.light_volumetric_fog_energy = 0.15
+	lamp.light_color = Color("FFE6C0")
 	lamp.shadow_enabled = true
+	lamp.shadow_blur = 1.2
 	lamp.rotation_degrees = Vector3(-6, 0, 0)
 	vis.add_child(lamp)
 	vis.rotation.y = 0.0
@@ -229,8 +230,8 @@ func _look() -> void:
 	own_light = OmniLight3D.new()
 	own_light.position = Vector3(0, 1.7, 0)
 	own_light.light_color = Color("FFD9A0")
-	own_light.light_energy = 1.25
-	own_light.omni_range = 6.0
+	own_light.light_energy = 0.45
+	own_light.omni_range = 4.2
 	own_light.shadow_enabled = false
 	add_child(own_light)
 	foot_ring = MeshInstance3D.new()
@@ -243,7 +244,7 @@ func _look() -> void:
 	foot_ring.position = Vector3(0, 0.06, 0)
 	var rm := StandardMaterial3D.new()
 	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	rm.albedo_color = Color(0.6, 0.92, 0.5, 0.5)
+	rm.albedo_color = Color(0.45, 0.7, 0.38, 0.22)
 	rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	foot_ring.material_override = rm
 	foot_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -330,6 +331,36 @@ func _aim_ui() -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	aim_ui.add_child(root)
+	var grade := ColorRect.new()
+	grade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	grade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var gsh := Shader.new()
+	gsh.code = """
+shader_type canvas_item;
+uniform sampler2D screen_tex : hint_screen_texture, repeat_disable, filter_linear;
+void fragment() {
+	vec2 uv = SCREEN_UV;
+	vec2 d = uv - vec2(0.5);
+	float ca = dot(d, d) * 0.004;
+	vec3 col;
+	col.r = texture(screen_tex, uv + d * ca).r;
+	col.g = texture(screen_tex, uv).g;
+	col.b = texture(screen_tex, uv - d * ca).b;
+	float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
+	col = mix(vec3(l), col, 1.04);
+	col *= mix(vec3(0.94, 0.96, 1.02), vec3(1.0, 0.98, 0.95), smoothstep(0.12, 0.7, l));
+	col = col / (vec3(1.0) + max(col - vec3(0.72), vec3(0.0)) * 1.6);
+	float g = fract(sin(dot(uv * vec2(1700.0, 980.0) + vec2(TIME * 13.0, TIME * 7.0), vec2(12.9898, 78.233))) * 43758.5453);
+	col += (g - 0.5) * 0.008;
+	float vig = smoothstep(0.5, 1.05, length(d * vec2(1.1, 1.0)));
+	col *= mix(1.0, 0.86, vig);
+	COLOR = vec4(clamp(col, vec3(0.0), vec3(1.0)), 1.0);
+}
+"""
+	var gm := ShaderMaterial.new()
+	gm.shader = gsh
+	grade.material = gm
+	root.add_child(grade)
 	vignette = ColorRect.new()
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -609,9 +640,12 @@ func _physics_process(delta: float) -> void:
 	_update_vignette()
 	if lamp and world and world.has_method("lantern_frac"):
 		var f: float = world.lantern_frac()
-		lamp.light_energy = 2.1 if f > 0.3 else 1.1 + sin(Time.get_ticks_msec() * 0.02) * 0.7
+		lamp.light_energy = 1.55 if f > 0.3 else 0.85 + sin(Time.get_ticks_msec() * 0.02) * 0.2
 
-	if not is_on_floor():
+	var ladder := _touching_ladder()
+	var want_climb := absf(Input.get_axis("move_up", "move_down")) > 0.18
+	on_ladder = ladder != null and (want_climb or not is_on_floor())
+	if not on_ladder and not is_on_floor():
 		velocity.y -= GRAVITY * delta
 
 	if locked:
@@ -656,9 +690,22 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("drop_item"):
 		drop_held()
 
-	if Input.is_action_just_pressed("jump") and is_on_floor():
-		velocity.y = JUMP_VEL
-		AudioDirector.play("jump", 0.95)
+	if Input.is_action_just_pressed("jump"):
+		if on_ladder:
+			velocity.y = JUMP_VEL * 0.62
+			var away := Vector3.ZERO
+			if ladder:
+				away = _flat(global_position - ladder.global_position)
+			if away.length() < 0.08:
+				away = _flat(camera.global_transform.basis.z)
+			away = away.normalized()
+			velocity.x = away.x * 4.2
+			velocity.z = away.z * 4.2
+			on_ladder = false
+			AudioDirector.play("jump", 0.95)
+		elif is_on_floor():
+			velocity.y = JUMP_VEL
+			AudioDirector.play("jump", 0.95)
 
 	var shoot_now := Input.is_action_pressed("shoot")
 	var shoot_tap := shoot_now and not _shoot_held
@@ -685,7 +732,15 @@ func _physics_process(delta: float) -> void:
 	var forward := _flat(-camera.global_transform.basis.z)
 	var right := _flat(camera.global_transform.basis.x)
 	var wish := right * input.x + forward * (-input.y)
-	if wish.length() > 0.1:
+	if on_ladder and ladder:
+		var iy := Input.get_axis("move_up", "move_down")
+		velocity.y = -iy * 5.4
+		var tpos := ladder.global_position
+		global_position.x = move_toward(global_position.x, tpos.x, 9.0 * delta)
+		global_position.z = move_toward(global_position.z, tpos.z, 9.0 * delta)
+		velocity.x = 0.0
+		velocity.z = 0.0
+	elif wish.length() > 0.1:
 		wish = wish.normalized()
 		velocity.x = wish.x * WALK_SPEED
 		velocity.z = wish.z * WALK_SPEED
@@ -1074,6 +1129,15 @@ func _place() -> void:
 
 func _aim_point() -> Vector3:
 	return aim_ground
+
+
+func _touching_ladder() -> Area3D:
+	if not is_inside_tree():
+		return null
+	for n in get_tree().get_nodes_in_group("ladder"):
+		if n is Area3D and (n as Area3D).overlaps_body(self):
+			return n
+	return null
 
 
 func _step_up(dir: Vector3) -> void:
@@ -1482,8 +1546,6 @@ func _mat(c: Color, rough: float = 0.62, metal: float = 0.0) -> StandardMaterial
 	m.albedo_color = c
 	m.roughness = rough
 	m.metallic = metal
-	m.rim_enabled = true
-	m.rim = 0.28
 	return m
 
 
@@ -1491,9 +1553,12 @@ func _mesh(parent: Node3D, mesh: PrimitiveMesh, pos: Vector3, sc: Vector3, mat: 
 	if mesh is SphereMesh:
 		(mesh as SphereMesh).radius = 0.5
 		(mesh as SphereMesh).height = 1.0
+		(mesh as SphereMesh).radial_segments = 16
+		(mesh as SphereMesh).rings = 10
 	elif mesh is CapsuleMesh:
 		(mesh as CapsuleMesh).radius = 0.5
 		(mesh as CapsuleMesh).height = 1.4
+		(mesh as CapsuleMesh).radial_segments = 12
 	elif mesh is BoxMesh:
 		(mesh as BoxMesh).size = Vector3.ONE
 	elif mesh is CylinderMesh:

@@ -56,8 +56,9 @@ var env: Environment
 var fireflies: Array[MeshInstance3D] = []
 var bats: Array[Dictionary] = []
 var mist: Array[MeshInstance3D] = []
-var fog_base := 0.012
+var fog_base := 0.005
 var hill_pads: Array[Vector3] = []
+var canopy_pts: Array[Vector3] = []
 var zone_rings: Array[MeshInstance3D] = []
 var ground_mat: StandardMaterial3D
 var stone_mat: StandardMaterial3D
@@ -74,7 +75,7 @@ var weather_t := 32.0
 var last_weather := -1
 var lightning_flash := 0.0
 var wheel
-var lamp_posts: Array[OmniLight3D] = []
+var lamp_posts: Array = []
 var town
 var power_on := false
 var town_open := false
@@ -90,8 +91,8 @@ func _ready() -> void:
 	_load_best()
 	AudioDirector.play_music("hollow")
 	Game.in_combat = false
-	ground_mat = _noise_material([Color("1A2417"), Color("28371F"), Color("3A4E2C")], 0.05, 0.02, 7)
-	stone_mat = _noise_material([Color("34363C"), Color("484A52"), Color("5A5C64")], 0.12, 0.05, 3)
+	ground_mat = Art.surface("grass")
+	stone_mat = Art.surface("stone")
 	_sky()
 	_ground()
 	_hills()
@@ -204,6 +205,9 @@ func try_interact() -> bool:
 		for s in town.stations:
 			if s and s.has_method("try_use") and s.try_use():
 				return true
+	for n in get_tree().get_nodes_in_group("lift"):
+		if n.has_method("try_use") and n.try_use():
+			return true
 	return false
 
 
@@ -219,7 +223,7 @@ func _on_power() -> void:
 		town.set_power(true)
 	_show("POWER ON")
 	if env:
-		env.ambient_light_energy = maxf(env.ambient_light_energy, 0.7)
+		env.ambient_light_energy = maxf(env.ambient_light_energy, 0.48)
 
 
 func apply_powerup(kind: String, pos: Vector3) -> void:
@@ -297,55 +301,85 @@ func _sky() -> void:
 	var sky := Sky.new()
 	var sm := ProceduralSkyMaterial.new()
 	sky_mat = sm
-	sm.sky_top_color = Color("0A0E1E")
-	sm.sky_horizon_color = Color("3A2A44")
-	sm.sky_curve = 0.09
-	sm.ground_bottom_color = Color("08080C")
-	sm.ground_horizon_color = Color("1A1420")
-	sm.sun_angle_max = 4.0
+	sm.sky_top_color = Color("05070E")
+	sm.sky_horizon_color = Color("1A1824")
+	sm.sky_curve = 0.12
+	sm.ground_bottom_color = Color("060508")
+	sm.ground_horizon_color = Color("121018")
+	sm.sun_angle_max = 2.5
+	sm.sky_energy_multiplier = 0.72
 	sky.sky_material = sm
 	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("2E3C66")
-	env.ambient_light_energy = 0.62
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_color = Color("3A4A62")
+	env.ambient_light_energy = 0.42
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_exposure = 1.05
+	env.tonemap_exposure = 0.9
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.06
-	env.adjustment_saturation = 1.15
+	env.adjustment_contrast = 1.04
+	env.adjustment_saturation = 0.94
 	env.ssao_enabled = true
-	env.ssao_intensity = 1.3
-	env.ssao_radius = 1.2
+	env.ssao_intensity = 1.25
+	env.ssao_radius = 1.15
+	env.ssao_horizon = 0.1
+	env.ssao_detail = 0.55
+	env.ssao_sharpness = 0.35
+	env.ssil_enabled = true
+	env.ssil_intensity = 0.5
+	env.ssil_radius = 3.2
+	env.ssr_enabled = true
+	env.ssr_max_steps = 64
+	env.ssr_fade_in = 0.12
+	env.ssr_fade_out = 2.4
+	env.sdfgi_enabled = true
+	env.sdfgi_use_occlusion = true
+	env.sdfgi_read_sky_light = true
+	env.sdfgi_cascades = 4
+	env.sdfgi_min_cell_size = 0.4
+	env.sdfgi_energy = 0.72
+	env.sdfgi_bounce_feedback = 0.28
 	env.glow_enabled = true
-	env.glow_intensity = 0.7
-	env.glow_bloom = 0.15
-	env.glow_hdr_threshold = 1.0
+	env.glow_intensity = 0.16
+	env.glow_bloom = 0.02
+	env.glow_hdr_threshold = 1.45
 	env.fog_enabled = true
-	env.fog_light_color = Color("2A3048")
-	env.fog_density = 0.0035
-	env.fog_aerial_perspective = 0.6
-	env.fog_sky_affect = 0.25
+	env.fog_light_color = Color("1A1C28")
+	env.fog_density = 0.0022
+	env.fog_aerial_perspective = 0.55
+	env.fog_sky_affect = 0.22
 	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = fog_base
-	env.volumetric_fog_albedo = Color("7A7898")
-	env.volumetric_fog_emission = Color("0E0A16")
-	env.volumetric_fog_emission_energy = 0.4
-	env.volumetric_fog_length = 120.0
-	env.volumetric_fog_sky_affect = 0.15
+	env.volumetric_fog_density = fog_base * 0.55
+	env.volumetric_fog_albedo = Color("8A8898")
+	env.volumetric_fog_emission = Color("1A1824")
+	env.volumetric_fog_emission_energy = 0.08
+	env.volumetric_fog_length = 96.0
+	env.volumetric_fog_sky_affect = 0.28
+	env.volumetric_fog_gi_inject = 0.35
+	env.volumetric_fog_ambient_inject = 0.22
+	env.volumetric_fog_anisotropy = 0.12
+	env.fog_sun_scatter = 0.04
+	env.tonemap_white = 8.0
+	env.adjustment_brightness = 1.0
 	we.environment = env
 	add_child(we)
 	sun = DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-58, 38, 0)
-	sun.light_color = Color("9FB6E8")
-	sun.light_energy = 1.25
+	sun.rotation_degrees = Vector3(-28, 42, 0)
+	sun.light_color = Color("D0DCEC")
+	sun.light_energy = 0.4
+	sun.light_angular_distance = 1.15
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 120.0
+	sun.shadow_opacity = 0.82
+	sun.shadow_blur = 1.15
+	sun.light_volumetric_fog_energy = 0.45
+	sun.light_specular = 0.55
+	sun.directional_shadow_max_distance = 150.0
+	sun.directional_shadow_blend_splits = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	add_child(sun)
 	fill = DirectionalLight3D.new()
-	fill.rotation_degrees = Vector3(-42, 38 + 180, 0)
-	fill.light_color = Color("3C5A6E")
-	fill.light_energy = 0.28
+	fill.rotation_degrees = Vector3(-18, 42 + 180, 0)
+	fill.light_color = Color("5A6A82")
+	fill.light_energy = 0.1
 	fill.shadow_enabled = false
 	fill.light_specular = 0.0
 	add_child(fill)
@@ -358,54 +392,59 @@ func _moon() -> void:
 	add_child(moon_root)
 	var moon := MeshInstance3D.new()
 	var sph := SphereMesh.new()
-	sph.radius = 16.0
-	sph.height = 32.0
+	sph.radius = 10.0
+	sph.height = 20.0
+	sph.radial_segments = 24
+	sph.rings = 16
 	moon.mesh = sph
-	moon.position = Vector3(-90, 110, -80)
-	var mm := StandardMaterial3D.new()
-	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mm.albedo_color = Color("F0E6C8")
+	moon.position = Vector3(-110, 130, -90)
+	var mm := Art.surface("stone").duplicate()
+	mm.albedo_color = Color("D8D0C0")
+	mm.roughness = 0.92
+	mm.emission_enabled = true
+	mm.emission = Color("E8E0D0")
+	mm.emission_energy_multiplier = 0.35
 	mm.disable_fog = true
 	moon.material_override = mm
 	moon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	moon_root.add_child(moon)
-	for crater in [Vector3(-6, 4, 12), Vector3(8, -5, 10), Vector3(-2, 9, 8)]:
-		var c := MeshInstance3D.new()
-		var cs := SphereMesh.new()
-		cs.radius = 3.2
-		cs.height = 6.4
-		c.mesh = cs
-		c.position = moon.position + crater
-		var cm := StandardMaterial3D.new()
-		cm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		cm.albedo_color = Color("C8B898")
-		cm.disable_fog = true
-		c.material_override = cm
-		c.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		moon_root.add_child(c)
-	var glow := OmniLight3D.new()
-	glow.position = Vector3(-70, 90, -60)
-	glow.light_color = Color("E8DCC0")
-	glow.light_energy = 8.0
-	glow.omni_range = 80.0
-	moon_root.add_child(glow)
+	var halo := MeshInstance3D.new()
+	var hq := QuadMesh.new()
+	hq.size = Vector2(46, 46)
+	halo.mesh = hq
+	halo.position = moon.position
+	var hm := StandardMaterial3D.new()
+	hm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	hm.albedo_texture = Art.soft_light()
+	hm.albedo_color = Color(0.75, 0.82, 1.0, 0.28)
+	hm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	hm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	hm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	hm.disable_fog = true
+	halo.material_override = hm
+	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	moon_root.add_child(halo)
 
 
 func _stars() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
-	for i in 140:
+	var glow := Art.soft_light()
+	for i in 180:
 		var mi := MeshInstance3D.new()
-		var s := SphereMesh.new()
-		s.radius = rng.randf_range(0.35, 1.1)
-		s.height = s.radius * 2.0
-		mi.mesh = s
-		var dir := Vector3(rng.randf_range(-1, 1), rng.randf_range(0.15, 1.0), rng.randf_range(-1, 1)).normalized()
-		mi.position = dir * rng.randf_range(220.0, 320.0)
+		var q := QuadMesh.new()
+		var s := rng.randf_range(0.7, 2.4)
+		q.size = Vector2(s, s)
+		mi.mesh = q
+		var dir := Vector3(rng.randf_range(-1, 1), rng.randf_range(0.18, 1.0), rng.randf_range(-1, 1)).normalized()
+		mi.position = dir * rng.randf_range(240.0, 340.0)
 		var m := StandardMaterial3D.new()
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.albedo_color = Color(1, 1, 1, rng.randf_range(0.45, 1.0))
+		m.albedo_texture = glow
+		m.albedo_color = Color(rng.randf_range(0.85, 1.0), rng.randf_range(0.88, 1.0), 1.0, rng.randf_range(0.45, 0.95))
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 		m.disable_fog = true
 		mi.material_override = m
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -451,13 +490,118 @@ func _noise_material(ramp: Array, uv_scale: float, freq: float, seed_v: int) -> 
 	return m
 
 
+func _grass_field() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4401
+	var pads: Array[Vector3] = [
+		Vector3(38.4, 0, -13.4), Vector3(57.6, 0, -13.4),
+		Vector3(38.4, 0, 13.4), Vector3(57.6, 0, 13.4)
+	]
+	var xforms: Array[Transform3D] = []
+	var colors: Array[Color] = []
+	for i in 4200:
+		var ang := rng.randf() * TAU
+		var rad := pow(rng.randf(), 0.72) * 60.0
+		var p := Vector3(cos(ang) * rad, 0.0, sin(ang) * rad)
+		if rad < 3.6 or _in_street(p):
+			continue
+		var blocked := false
+		for pad in pads:
+			if absf(p.x - pad.x) < 7.2 and absf(p.z - pad.z) < 6.6:
+				blocked = true
+				break
+		if blocked:
+			continue
+		for pad in hill_pads:
+			if Vector2(p.x - pad.x, p.z - pad.z).length() < 6.5:
+				blocked = true
+				break
+		if blocked:
+			continue
+		var gy := 0.74 if rad < 60.0 else 0.67
+		var yaw := rng.randf() * TAU
+		var lean := rng.randf_range(-0.18, 0.18)
+		var sc := rng.randf_range(0.65, 1.25)
+		var basis := Basis(Vector3.UP, yaw).rotated(Vector3(1, 0, 0), lean).scaled(Vector3(sc, rng.randf_range(0.75, 1.35), sc))
+		xforms.append(Transform3D(basis, Vector3(p.x, gy, p.z)))
+		colors.append(Color(rng.randf_range(0.78, 1.05), rng.randf_range(0.88, 1.08), rng.randf_range(0.72, 0.95)))
+	_scatter(xforms, colors, _foliage_mesh(0.07, 0.58, 2), _foliage_mat(Color("1A3014"), Color("6A9440"), 0.11, 0.38))
+
+
+func _canopy_field() -> void:
+	if canopy_pts.is_empty():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 19
+	var xforms: Array[Transform3D] = []
+	var colors: Array[Color] = []
+	for c in canopy_pts:
+		for i in 16:
+			var dir := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.25, 1), rng.randf_range(-1, 1))
+			if dir.length() < 0.001:
+				dir = Vector3.UP
+			dir = dir.normalized()
+			var at := c + dir * rng.randf_range(0.15, 1.55)
+			var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(rng.randf_range(0.85, 1.35), rng.randf_range(0.8, 1.3), rng.randf_range(0.85, 1.35)))
+			xforms.append(Transform3D(basis, at))
+			colors.append(Color(rng.randf_range(0.7, 1.0), rng.randf_range(0.85, 1.05), rng.randf_range(0.7, 0.92)))
+	_scatter(xforms, colors, _foliage_mesh(0.85, 1.15, 2), _foliage_mat(Color("163016"), Color("4E7A34"), 0.05, 0.28))
+
+
+func _scatter(xforms: Array[Transform3D], colors: Array[Color], mesh: Mesh, mat: Material) -> void:
+	if xforms.is_empty():
+		return
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.use_colors = true
+	multi.mesh = mesh
+	multi.instance_count = xforms.size()
+	for i in xforms.size():
+		multi.set_instance_transform(i, xforms[i])
+		multi.set_instance_color(i, colors[i])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = multi
+	mmi.material_override = mat
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
+
+
+func _foliage_mesh(w: float, h: float, cards: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in cards:
+		var yaw := PI * float(i) / float(cards)
+		var b := Basis(Vector3.UP, yaw)
+		var n := b * Vector3(0, 0, 1)
+		var hw := w * 0.5
+		var pts := [Vector3(-hw, 0, 0), Vector3(hw, 0, 0), Vector3(hw, h, 0), Vector3(-hw, 0, 0), Vector3(hw, h, 0), Vector3(-hw, h, 0)]
+		var uvs := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 0), Vector2(1, 1), Vector2(0, 1)]
+		for k in 6:
+			st.set_normal(n)
+			st.set_uv(uvs[k])
+			st.set_color(Color.WHITE)
+			st.add_vertex(b * pts[k])
+	return st.commit()
+
+
+func _foliage_mat(root: Color, tip: Color, wind: float, cutoff: float) -> ShaderMaterial:
+	var sh := load("res://shaders/foliage.gdshader") as Shader
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	m.set_shader_parameter("root_color", root)
+	m.set_shader_parameter("tip_color", tip)
+	m.set_shader_parameter("wind", wind)
+	m.set_shader_parameter("cutoff", cutoff)
+	return m
+
+
 func _ground() -> void:
 	_cyl(Vector3(0, 0.2, 0), 78.0, 0.9, Color("1A2016"), true, null, ground_mat)
 	_cyl(Vector3(0, 0.58, 0), 62.0, 0.28, Color("243022"), true, null, ground_mat)
 	_cyl(Vector3(0, 0.72, 0), 6.4, 0.08, Color("4A4E55"), false, null, stone_mat)
 	# Worn dirt paths from the graves to the lantern; decoration only. Built from a few
 	# staggered, slightly skewed strips so they read as trodden earth rather than planks.
-	var dirt_mat := _noise_material([Color("2E2519"), Color("3E3222"), Color("4A3D2C")], 0.09, 0.04, 11)
+	var dirt_mat := Art.surface("dirt")
 	for i in 4:
 		var a := TAU * (i * 5) / 18.0
 		for j in 3:
@@ -508,7 +652,7 @@ func _chapel(pad: Vector3) -> void:
 	_box(pad + Vector3(-3.2, 7.35, 0), Vector3(2.8, 2.6, 1.6), Color("1A1520"), true)
 	_box(pad + Vector3(3.2, 7.35, 0), Vector3(2.8, 2.6, 1.6), Color("1A1520"), true)
 	_box(pad + Vector3(0, 9.55, 0), Vector3(1.4, 3.2, 1.4), Color("3A2A22"), false)
-	var pane := _lit(Color("7A5AC8", 0.55), 1.6)
+	var pane := Art.glass(Color("7A5AC8", 0.45), 0.9)
 	_box(pad + Vector3(-1.8, 3.2, 1.14), Vector3(1.1, 1.6, 0.08), Color("7A5AC8", 0.55), false, null, pane)
 	_box(pad + Vector3(1.8, 3.2, 1.14), Vector3(1.1, 1.6, 0.08), Color("7A5AC8", 0.55), false, null, pane)
 	var glass := OmniLight3D.new()
@@ -539,7 +683,7 @@ func _shed(pad: Vector3, loot: Array) -> void:
 	_box(Vector3(0, 3.15, 0), Vector3(3.2, 0.18, 3.0), Color("3A2418"), false, n)
 	_cyl(Vector3(-1.9, 1.4, -1.5), 0.12, 2.6, Color("2A1C14"), false, n)
 	_cyl(Vector3(1.9, 1.4, -1.5), 0.12, 2.6, Color("2A1C14"), false, n)
-	var pane := _lit(Color("FFB347", 0.5), 1.1)
+	var pane := Art.glass(Color("FFB347", 0.42), 0.7)
 	_box(Vector3(-2.23, 1.7, -0.45), Vector3(0.06, 0.7, 0.7), Color("FFB347", 0.5), false, n, pane)
 	_box(Vector3(2.23, 1.7, -0.45), Vector3(0.06, 0.7, 0.7), Color("FFB347", 0.5), false, n, pane)
 	_box(Vector3(-1.1, 1.75, -1.84), Vector3(0.7, 0.7, 0.06), Color("FFB347", 0.5), false, n, pane)
@@ -601,6 +745,7 @@ func _yard() -> void:
 		Vector3(9.5, 0, 16.0), Vector3(-18.0, 0, 6.0)
 	]:
 		_pumpkin(p)
+	_grass_field()
 	for i in 6:
 		var a := TAU * i / 6.0 + 0.5
 		_lamp_post(Vector3(cos(a) * 8.5, 0, sin(a) * 8.5))
@@ -684,6 +829,7 @@ func _woods() -> void:
 		if _in_street(p):
 			continue
 		_dead_tree(p)
+	_canopy_field()
 
 
 func _pumpkin(at: Vector3) -> void:
@@ -709,15 +855,20 @@ func _pumpkin(at: Vector3) -> void:
 
 func _lamp_post(at: Vector3) -> void:
 	var gy := _ground_y(at)
-	_cyl(Vector3(at.x, gy + 1.15, at.z), 0.07, 2.3, Color("2A1C14"), true)
-	_box(Vector3(at.x, gy + 2.28, at.z), Vector3(0.36, 0.08, 0.36), Color("3A2418"), false)
-	_box(Vector3(at.x, gy + 2.5, at.z), Vector3(0.24, 0.36, 0.24), Color("FFB347", 0.55), false)
-	_box(Vector3(at.x, gy + 2.7, at.z), Vector3(0.3, 0.06, 0.3), Color("3A2418"), false)
-	var lamp := OmniLight3D.new()
-	lamp.position = Vector3(at.x, gy + 2.5, at.z)
-	lamp.light_color = Color("FF9A48")
-	lamp.light_energy = 2.2
-	lamp.omni_range = 8.0
+	_cyl(Vector3(at.x, gy + 1.15, at.z), 0.06, 2.3, Color("2A1C14"), true, null, Art.surface("metal"))
+	_box(Vector3(at.x, gy + 2.28, at.z), Vector3(0.36, 0.08, 0.36), Color("3A2418"), false, null, Art.surface("rust"))
+	_box(Vector3(at.x, gy + 2.5, at.z), Vector3(0.2, 0.28, 0.2), Color("FFB347", 0.45), false, null, Art.glass(Color("FFD8A0", 0.5), 1.4))
+	_box(Vector3(at.x, gy + 2.7, at.z), Vector3(0.3, 0.06, 0.3), Color("3A2418"), false, null, Art.surface("metal"))
+	var lamp := SpotLight3D.new()
+	lamp.position = Vector3(at.x, gy + 2.48, at.z)
+	lamp.rotation_degrees = Vector3(-90, 0, 0)
+	lamp.light_color = Color("FFC078")
+	lamp.light_energy = 2.0
+	lamp.spot_range = 12.0
+	lamp.spot_angle = 48.0
+	lamp.shadow_enabled = true
+	lamp.shadow_blur = 1.2
+	lamp.light_volumetric_fog_energy = 0.35
 	add_child(lamp)
 	lamp_posts.append(lamp)
 
@@ -784,21 +935,20 @@ func _mist() -> void:
 
 func _tree(xz: Vector3) -> void:
 	var gy := _ground_y(xz)
-	var pos := Vector3(xz.x, gy + 1.55, xz.z)
-	_cyl(pos, 0.32, 3.1, Color("1A1210"), true)
-	# Canopies are seen from above, so they need enough value to read as foliage under moonlight.
-	_sphere(pos + Vector3(0, 1.55, 0), 1.8, Color("2C4A32"), false)
-	_sphere(pos + Vector3(0.9, 1.25, -0.5), 1.1, Color("223C28"), false)
-	_sphere(pos + Vector3(-0.7, 1.35, 0.4), 0.95, Color("264430"), false)
+	var pos := Vector3(xz.x, gy + 1.7, xz.z)
+	_cyl(pos, 0.22, 3.6, Color("1A1210"), true, null, Art.surface("bark"))
+	_cyl(pos + Vector3(0.12, 0.55, -0.08), 0.1, 1.6, Color("1A1210"), false, null, Art.surface("bark"))
+	canopy_pts.append(pos + Vector3(0, 2.05, 0))
 
 
 func _dead_tree(xz: Vector3) -> void:
 	var gy := _ground_y(xz)
 	var pos := Vector3(xz.x, gy + 2.05, xz.z)
-	_cyl(pos, 0.22, 4.1, Color("1A1410"), true)
-	_box(pos + Vector3(0.7, 0.5, 0), Vector3(1.6, 0.12, 0.12), Color("1A1410"), false)
-	_box(pos + Vector3(-0.5, 1.1, 0.2), Vector3(1.2, 0.1, 0.1), Color("1A1410"), false)
-	_box(pos + Vector3(0.2, 1.8, -0.6), Vector3(0.12, 0.12, 1.4), Color("1A1410"), false)
+	var bark := Art.surface("bark")
+	_cyl(pos, 0.2, 4.1, Color("1A1410"), true, null, bark)
+	_box(pos + Vector3(0.7, 0.5, 0), Vector3(1.6, 0.1, 0.1), Color("1A1410"), false, null, bark)
+	_box(pos + Vector3(-0.5, 1.1, 0.2), Vector3(1.2, 0.08, 0.08), Color("1A1410"), false, null, bark)
+	_box(pos + Vector3(0.2, 1.8, -0.6), Vector3(0.1, 0.1, 1.4), Color("1A1410"), false, null, bark)
 
 
 func _keep() -> void:
@@ -1072,13 +1222,13 @@ func _show_start_card() -> void:
 	card_title.text = "LANTERN HOLLOW"
 	var controls := ""
 	if InputSetup.pad_connected():
-		controls = "LS move  ·  RS look  ·  RT shoot  ·  B bat swing\nY build  ·  LB / RB items  ·  X reload  ·  View inventory\nE buy / Santa's sack / power  ·  L3 call round  ·  RS click FP"
+		controls = "LS move  ·  RS look  ·  RT shoot  ·  B bat swing\nY build  ·  LB / RB items  ·  X reload  ·  View inventory\nE buy / cauldron / power  ·  L3 call round  ·  RS click FP"
 	else:
 		controls = "WASD move  ·  Mouse aim  ·  Click shoot  ·  V bat\nTab build  ·  1-9 hotbar  ·  R reload  ·  E inventory or buy\nEnter call round  ·  F first-person  ·  Scroll zoom"
 	var best := ""
 	if best_wave > 0:
 		best = "\n\nBest run: wave %d" % best_wave
-	card_body.text = "Zombies hunt you. Nothing else. Kill them for points, close the round, spend coins in town.\n\nClear debris to open Hollow Street. Hit the power, buy wall guns, drink perks, dip Santa's sack for a random prize.\nCandy still builds traps. Coins buy everything in town.\n\n" + controls + best
+	card_body.text = "Zombies hunt you. Nothing else. Kill them for points, close the round, spend coins in town.\n\nClear debris to open Hollow Street. Hit the power, buy wall guns, drink perks, dip the cauldron for a random prize.\nCandy still builds traps. Coins buy everything in town.\n\n" + controls + best
 	card_prompt.text = "Click or press A to begin"
 
 
@@ -1272,29 +1422,41 @@ func _preview(w: int) -> String:
 
 
 func _wake_next() -> void:
-	if to_spawn.is_empty() or graves.is_empty():
+	if to_spawn.is_empty():
 		return
 	var kind: String = to_spawn.pop_front()
-	var pool: Array = []
-	for g in graves:
-		if g == null:
+	_spawn_at_pos(kind, _rand_spawn())
+
+
+func _rand_spawn() -> Vector3:
+	var hx := Vector3.ZERO
+	if hunter:
+		hx = hunter.global_position
+	for i in 22:
+		var p := Vector3(randf_range(-52.0, 74.0), 0.0, randf_range(-46.0, 46.0))
+		if Vector2(p.x, p.z).length() < 5.5:
 			continue
-		if bool(g.get("in_town")) and not town_open:
+		if Vector2(p.x - hx.x, p.z - hx.z).length() < 12.0:
 			continue
-		pool.append(g)
-	if pool.is_empty():
-		pool = graves
-	var g = pool[randi() % pool.size()]
-	if g.has_method("wake"):
-		g.wake(kind)
+		p.y = _ground_y(p) + 0.28
+		if p.y > 14.0 or p.y < -1.0:
+			continue
+		return p
+	return Vector3(22.0, _ground_y(Vector3(22, 0, 16)) + 0.28, 16.0)
 
 
 func _spawn_at(kind: String, g: Node3D) -> void:
+	if g == null:
+		return
+	_spawn_at_pos(kind, g.global_position + Vector3(0, 0.2, 0.7))
+
+
+func _spawn_at_pos(kind: String, pos: Vector3) -> void:
 	if over:
 		return
 	var z = Zed.new()
 	z.setup(kind, keep, hunter, wave)
-	z.position = g.global_position + Vector3(0, 0.2, 0.7)
+	z.position = pos
 	z.popped.connect(_on_pop)
 	add_child(z)
 	alive += 1
@@ -1439,12 +1601,15 @@ func _interact_prompt() -> String:
 	if wheel and wheel.near:
 		if wheel.spinning:
 			return ""
-		return "E  Santa's Sack  ·  %d 🪙" % int(wheel.COST)
+		return "E  Cauldron  ·  %d 🪙" % int(wheel.COST)
 	if town:
 		for s in town.stations:
 			if s and bool(s.near):
 				if s.has_method("prompt"):
 					return str(s.prompt())
+	for n in get_tree().get_nodes_in_group("lift"):
+		if n.has_method("near_prompt") and n.near_prompt():
+			return "E  Elevator"
 	return ""
 
 
@@ -1465,25 +1630,25 @@ func _tick_sky(delta: float) -> void:
 	if sun:
 		sun.rotation_degrees = Vector3(-elev * 72.0, 38.0, 0.0)
 		if elev > 0.08:
-			sun.light_color = Color("E8D2A8").lerp(Color("FFB070"), dusk).lerp(Color("6A7080"), overcast)
-			sun.light_energy = (0.55 + elev * 1.15) * (1.0 - overcast * 0.65) + lightning_flash * 2.4
+			sun.light_color = Color("E8D4A8").lerp(Color("E07040"), dusk).lerp(Color("6A7080"), overcast)
+			sun.light_energy = (0.7 + elev * 1.05) * (1.0 - overcast * 0.65) + lightning_flash * 2.4
 		else:
-			sun.light_color = Color("9FB6E8").lerp(Color("4A5060"), overcast)
-			sun.light_energy = (0.35 + (1.0 - night) * 0.4) * (1.0 - overcast * 0.4) + lightning_flash * 2.8
+			sun.light_color = Color("C4D0E4").lerp(Color("4A5060"), overcast)
+			sun.light_energy = (0.34 + (1.0 - night) * 0.16) * (1.0 - overcast * 0.28) + lightning_flash * 2.8
 	if fill:
-		fill.light_energy = 0.12 + (1.0 - night) * 0.22 * (1.0 - overcast * 0.5)
-		fill.light_color = Color("3C5A6E").lerp(Color("C8B090"), 1.0 - night)
+		fill.light_energy = 0.1 + (1.0 - night) * 0.16 * (1.0 - overcast * 0.5)
+		fill.light_color = Color("5A6A82").lerp(Color("C8B090"), 1.0 - night)
 	if sky_mat:
-		sky_mat.sky_top_color = Color("87A0C8").lerp(Color("0A0E1E"), night).lerp(Color("C45A40"), dusk * 0.45).lerp(Color("2A3040"), overcast)
-		sky_mat.sky_horizon_color = Color("C8B090").lerp(Color("3A2A44"), night).lerp(Color("E07040"), dusk * 0.7).lerp(Color("4A5060"), overcast)
-		sky_mat.ground_horizon_color = Color("4A4038").lerp(Color("1A1420"), night)
-		sky_mat.ground_bottom_color = Color("1A1814").lerp(Color("08080C"), night)
-		sky_mat.sky_energy_multiplier = lerpf(1.05, 0.42, maxf(night * 0.5, overcast))
+		sky_mat.sky_top_color = Color("6A88B0").lerp(Color("0C1220"), night).lerp(Color("C45A40"), dusk * 0.4).lerp(Color("2A3040"), overcast)
+		sky_mat.sky_horizon_color = Color("C8B8A0").lerp(Color("2A3040"), night).lerp(Color("E07040"), dusk * 0.65).lerp(Color("4A5060"), overcast)
+		sky_mat.ground_horizon_color = Color("4A4038").lerp(Color("1A1820"), night)
+		sky_mat.ground_bottom_color = Color("1A1814").lerp(Color("0C0A10"), night)
+		sky_mat.sky_energy_multiplier = lerpf(1.0, 0.62, maxf(night * 0.7, overcast))
 	if env:
-		env.ambient_light_color = Color("8A9AB8").lerp(Color("2E3C66"), night)
-		env.ambient_light_energy = lerpf(0.95, 0.48, night) * (1.0 - overcast * 0.25) + lightning_flash * 1.6
-		env.fog_light_color = Color("A8B0C4").lerp(Color("2A3048"), night)
-		env.tonemap_exposure = lerpf(1.12, 0.98, night)
+		env.ambient_light_color = Color("8A9AB8").lerp(Color("3A4A62"), night)
+		env.ambient_light_energy = lerpf(0.72, 0.38, night) * (1.0 - overcast * 0.18) + lightning_flash * 1.6
+		env.fog_light_color = Color("A8B0C4").lerp(Color("2A3040"), night)
+		env.tonemap_exposure = lerpf(0.98, 0.86, night)
 	if moon_root:
 		moon_root.visible = night > 0.28
 		moon_root.rotation_degrees = Vector3(elev * 55.0, -28.0, 0.0)
@@ -1492,7 +1657,7 @@ func _tick_sky(delta: float) -> void:
 	for i in fireflies.size():
 		if is_instance_valid(fireflies[i]):
 			fireflies[i].visible = night > 0.28
-	var lamp_e := lerpf(0.45, 2.4, night) + lightning_flash * 0.8
+	var lamp_e := lerpf(0.2, 2.1, night) + lightning_flash * 0.8
 	for l in lamp_posts:
 		if is_instance_valid(l):
 			l.light_energy = lamp_e
@@ -1526,7 +1691,7 @@ func _tick_weather(delta: float) -> void:
 		rain.direction = Vector3(0.22 + sin(Time.get_ticks_msec() * 0.0004) * 0.12, -1.0, 0.05)
 	if env:
 		var extra := 0.004 * rain_amt
-		env.volumetric_fog_density = fog_base + extra + (0.004 if day_clock < 0.2 or day_clock > 0.8 else 0.0)
+		env.volumetric_fog_density = fog_base + extra + (0.0012 if day_clock < 0.2 or day_clock > 0.8 else 0.0)
 	lightning_t -= delta
 	if weather == 2 and lightning_t <= 0.0:
 		lightning_t = randf_range(6.0, 16.0)
@@ -1546,9 +1711,13 @@ func _lightning() -> void:
 
 
 func _mat(c: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
+	var kind := "stone"
+	if c.g > c.r + 0.04 and c.g > c.b:
+		kind = "grass"
+	elif c.r > c.b + 0.06:
+		kind = "wood"
+	var m: StandardMaterial3D = Art.surface(kind).duplicate()
 	m.albedo_color = c
-	m.roughness = 0.8
 	if c.a < 0.99:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	return m
@@ -1608,7 +1777,7 @@ func _cyl(pos: Vector3, radius: float, height: float, color: Color, coll: bool, 
 	var c := CSGCylinder3D.new()
 	c.radius = radius
 	c.height = height
-	c.sides = 16 if radius < 10.0 else 48
+	c.sides = 16 if radius < 10.0 else 96
 	c.position = pos
 	c.material = mat if mat else _mat(color)
 	c.use_collision = coll

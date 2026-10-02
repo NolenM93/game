@@ -66,7 +66,8 @@ func _ready() -> void:
 	glass_mat.emission_enabled = true
 	glass_mat.emission = Color("FF8A3A")
 	glass_mat.emission_energy_multiplier = 1.6
-	glass_mat.roughness = 0.15
+	glass_mat.roughness = 0.12
+	glass_mat.metallic = 0.08
 	glass.material_override = glass_mat
 	vis.add_child(glass)
 	flame = MeshInstance3D.new()
@@ -188,8 +189,8 @@ func _box(pos: Vector3, size: Vector3, color: Color) -> void:
 	b.size = size
 	mi.mesh = b
 	mi.position = pos
-	var m := StandardMaterial3D.new()
+	var base: StandardMaterial3D = Art.surface("wood") if color.r > color.b + 0.05 else Art.surface("stone")
+	var m: StandardMaterial3D = base.duplicate()
 	m.albedo_color = color
-	m.roughness = 0.82
 	mi.material_override = m
 	vis.add_child(mi)
