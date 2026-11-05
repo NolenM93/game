@@ -283,6 +283,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle()
 		get_viewport().set_input_as_handled()
 		return
+	if event.is_action_pressed("help"):
+		if hunter and hunter.world and hunter.world.has_method("_show_help") and hunter.world.has_method("_close_help"):
+			if bool(hunter.world.get("help_open")):
+				hunter.world._close_help()
+			elif bool(hunter.world.get("started")) and not bool(hunter.world.get("over")):
+				hunter.world._show_help()
+			get_viewport().set_input_as_handled()
+			return
 	if event.is_action_pressed("pause"):
 		if open:
 			set_open(false)

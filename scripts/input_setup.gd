@@ -52,6 +52,7 @@ static func _bind_all() -> void:
 	_bind("call_wave", [KEY_ENTER, KEY_G], [JOY_BUTTON_LEFT_STICK])
 	_bind("camera_mode", [KEY_F], [JOY_BUTTON_RIGHT_STICK])
 	_bind("pause", [KEY_ESCAPE], [JOY_BUTTON_START])
+	_bind("help", [KEY_H, KEY_F1], [])
 	_bind("attack", [KEY_J, KEY_Z], [JOY_BUTTON_X])
 	_bind("signature", [KEY_K], [JOY_BUTTON_Y])
 	_bind("mobility", [KEY_L], [JOY_BUTTON_B])

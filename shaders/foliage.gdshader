@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled, depth_prepass_alpha, diffuse_burley, specular_schlick_ggx;
+render_mode cull_disabled, depth_prepass_alpha;
 
 uniform vec4 root_color : source_color = vec4(0.16, 0.28, 0.12, 1.0);
 uniform vec4 tip_color : source_color = vec4(0.42, 0.62, 0.24, 1.0);
@@ -36,5 +36,7 @@ void fragment() {
 	ALBEDO = col * shade;
 	ROUGHNESS = mix(0.82, 0.55, UV.y);
 	SPECULAR = 0.18;
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
 	BACKLIGHT = vec3(0.45, 0.62, 0.22);
+#endif
 }

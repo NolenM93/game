@@ -84,6 +84,8 @@ var double_t := 0.0
 var round_lbl: Label
 var buff_lbl: Label
 var points_lbl: Label
+var help_open := false
+var help_btn: Button
 
 
 func _ready() -> void:
@@ -292,6 +294,10 @@ func _save_best() -> void:
 	cf.save(SAVE_PATH)
 
 
+func _compat() -> bool:
+	return RenderingServer.get_current_rendering_method() == "gl_compatibility"
+
+
 # --- environment ---------------------------------------------------------------
 
 func _sky() -> void:
@@ -360,6 +366,18 @@ func _sky() -> void:
 	env.fog_sun_scatter = 0.04
 	env.tonemap_white = 8.0
 	env.adjustment_brightness = 1.0
+	if _compat():
+		env.ssao_enabled = false
+		env.ssil_enabled = false
+		env.ssr_enabled = false
+		env.sdfgi_enabled = false
+		env.volumetric_fog_enabled = false
+		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+		env.fog_density = 0.0065
+		env.fog_aerial_perspective = 0.35
+		env.ambient_light_energy = 0.85
+		env.glow_intensity = 0.28
+		env.glow_bloom = 0.04
 	we.environment = env
 	add_child(we)
 	sun = DirectionalLight3D.new()
@@ -383,6 +401,10 @@ func _sky() -> void:
 	fill.shadow_enabled = false
 	fill.light_specular = 0.0
 	add_child(fill)
+	if _compat():
+		sun.light_energy = 0.78
+		sun.light_volumetric_fog_energy = 0.0
+		fill.light_energy = 0.22
 	_moon()
 	_stars()
 
@@ -1054,6 +1076,7 @@ func _label(root: Control, pos: Vector2, size: int, color: Color, title_font: bo
 func _hud() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 40
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(layer)
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1150,14 +1173,39 @@ func _hud() -> void:
 	count_lbl.visible = false
 	root.add_child(count_lbl)
 	_card(root)
+	help_btn = Button.new()
+	help_btn.text = "Help"
+	help_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	help_btn.offset_left = -150
+	help_btn.offset_top = 90
+	help_btn.offset_right = -36
+	help_btn.offset_bottom = 134
+	help_btn.visible = false
+	help_btn.focus_mode = Control.FOCUS_NONE
+	var hs := StyleBoxFlat.new()
+	hs.bg_color = Color(0.12, 0.1, 0.09, 0.92)
+	hs.border_color = Color("FFB347")
+	hs.set_border_width_all(2)
+	hs.set_corner_radius_all(10)
+	hs.set_content_margin_all(8)
+	help_btn.add_theme_stylebox_override("normal", hs)
+	help_btn.add_theme_stylebox_override("hover", hs)
+	help_btn.add_theme_stylebox_override("pressed", hs)
+	help_btn.add_theme_font_size_override("font_size", 22)
+	if Art.font_body:
+		help_btn.add_theme_font_override("font", Art.font_body)
+	help_btn.add_theme_color_override("font_color", Color("FFE27A"))
+	help_btn.pressed.connect(_show_help)
+	root.add_child(help_btn)
 	_refresh()
 
 
 func _card(root: Control) -> void:
 	card = Control.new()
 	card.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	card.visible = false
+	card.gui_input.connect(_on_card_gui_input)
 	root.add_child(card)
 	var dim := ColorRect.new()
 	dim.color = Color(0.02, 0.02, 0.05, 0.62)
@@ -1215,26 +1263,66 @@ func _card(root: Control) -> void:
 	col.add_child(card_prompt)
 
 
+func _controls_text() -> String:
+	if InputSetup.pad_connected():
+		return "Gamepad\nLeft stick walk   Right stick look\nRT shoot   B swing bat   Y build\nE buy in town   X reload   L3 call a wave"
+	return "Keyboard and mouse\nWASD walk   Mouse look   Left click shoot\nV swing bat   Tab build traps   1-9 hotbar\nE buy in town   Enter call a wave   H help again"
+
+
 func _show_start_card() -> void:
 	if card == null:
 		return
+	help_open = false
 	card.visible = true
+	if help_btn:
+		help_btn.visible = false
 	card_title.text = "LANTERN HOLLOW"
-	var controls := ""
-	if InputSetup.pad_connected():
-		controls = "LS move  ·  RS look  ·  RT shoot  ·  B bat swing\nY build  ·  LB / RB items  ·  X reload  ·  View inventory\nE buy / cauldron / power  ·  L3 call round  ·  RS click FP"
-	else:
-		controls = "WASD move  ·  Mouse aim  ·  Click shoot  ·  V bat\nTab build  ·  1-9 hotbar  ·  R reload  ·  E inventory or buy\nEnter call round  ·  F first-person  ·  Scroll zoom"
 	var best := ""
 	if best_wave > 0:
 		best = "\n\nBest run: wave %d" % best_wave
-	card_body.text = "Zombies hunt you. Nothing else. Kill them for points, close the round, spend coins in town.\n\nClear debris to open Hollow Street. Hit the power, buy wall guns, drink perks, dip the cauldron for a random prize.\nCandy still builds traps. Coins buy everything in town.\n\n" + controls + best
-	card_prompt.text = "Click or press A to begin"
+	card_body.text = "Hold the last lantern. Pop the cartoon zombies. Build fences and have fun!\n\n" + _controls_text() + best
+	card_prompt.text = "Click or press Enter to play"
+
+
+func _show_help() -> void:
+	if card == null or over or not started:
+		return
+	help_open = true
+	if hunter:
+		hunter.locked = true
+	if help_btn:
+		help_btn.visible = false
+	card.visible = true
+	card_title.text = "HOW TO PLAY"
+	card_body.text = "Keep the lantern glowing. Zombies come in waves. Candy builds traps. Coins buy guns and treats in town.\n\n" + _controls_text()
+	card_prompt.text = "Click or press Enter to close"
+
+
+func _close_help() -> void:
+	help_open = false
+	if card:
+		card.visible = false
+	if hunter and started and not over:
+		hunter.locked = false
+	if help_btn:
+		help_btn.visible = true
+
+
+func _on_card_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if not started:
+			_start()
+		elif help_open:
+			_close_help()
+		get_viewport().set_input_as_handled()
 
 
 func _show_over_card() -> void:
 	if card == null:
 		return
+	help_open = false
+	if help_btn:
+		help_btn.visible = false
 	card.visible = true
 	card_title.text = "THE LANTERN WENT OUT"
 	card_body.text = "You held the hollow for %d wave%s and popped %d zombies.\n\nBest run: wave %d" % [wave, "" if wave == 1 else "s", kills, best_wave]
@@ -1243,7 +1331,10 @@ func _show_over_card() -> void:
 
 func _start() -> void:
 	started = true
+	help_open = false
 	card.visible = false
+	if help_btn:
+		help_btn.visible = true
 	if hunter:
 		hunter.locked = false
 		hunter._shoot_held = true
@@ -1292,9 +1383,18 @@ func _process(delta: float) -> void:
 		var gust := 1.0 + (0.8 if weather == 1 else 0.0) + (1.8 if weather == 2 else 0.0)
 		mist[i].position.x += sin(t * 0.15 + i) * delta * 0.6 * gust
 		mist[i].position.z += cos(t * 0.12 + i) * delta * 0.5 * gust
+	if Input.is_action_just_pressed("help") and started and not over:
+		if help_open:
+			_close_help()
+		else:
+			_show_help()
 	if not started:
 		if Input.is_action_just_pressed("shoot") or Input.is_action_just_pressed("jump") or Input.is_action_just_pressed("ui_confirm") or Input.is_action_just_pressed("build_mode"):
 			_start()
+		return
+	if help_open:
+		if Input.is_action_just_pressed("shoot") or Input.is_action_just_pressed("jump") or Input.is_action_just_pressed("ui_confirm") or Input.is_action_just_pressed("pause"):
+			_close_help()
 		return
 	if over:
 		over_t += delta
@@ -1343,7 +1443,10 @@ func _wave_clear() -> void:
 		best_wave = wave
 		_save_best()
 	if env:
-		env.volumetric_fog_density = clampf(fog_base + wave * 0.0015, fog_base, 0.028)
+		if _compat():
+			env.fog_density = clampf(0.0065 + wave * 0.0004, 0.0065, 0.014)
+		else:
+			env.volumetric_fog_density = clampf(fog_base + wave * 0.0015, fog_base, 0.028)
 	if wave == 8 and not won:
 		won = true
 		_show("THE HOLLOW GOES QUIET... keep going")
@@ -1691,7 +1794,10 @@ func _tick_weather(delta: float) -> void:
 		rain.direction = Vector3(0.22 + sin(Time.get_ticks_msec() * 0.0004) * 0.12, -1.0, 0.05)
 	if env:
 		var extra := 0.004 * rain_amt
-		env.volumetric_fog_density = fog_base + extra + (0.0012 if day_clock < 0.2 or day_clock > 0.8 else 0.0)
+		if _compat():
+			env.fog_density = 0.0065 + extra + (0.0012 if day_clock < 0.2 or day_clock > 0.8 else 0.0)
+		else:
+			env.volumetric_fog_density = fog_base + extra + (0.0012 if day_clock < 0.2 or day_clock > 0.8 else 0.0)
 	lightning_t -= delta
 	if weather == 2 and lightning_t <= 0.0:
 		lightning_t = randf_range(6.0, 16.0)

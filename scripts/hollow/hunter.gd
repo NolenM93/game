@@ -331,11 +331,12 @@ func _aim_ui() -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	aim_ui.add_child(root)
-	var grade := ColorRect.new()
-	grade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	grade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var gsh := Shader.new()
-	gsh.code = """
+	if not OS.has_feature("web") and RenderingServer.get_current_rendering_method() != "gl_compatibility":
+		var grade := ColorRect.new()
+		grade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		grade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var gsh := Shader.new()
+		gsh.code = """
 shader_type canvas_item;
 uniform sampler2D screen_tex : hint_screen_texture, repeat_disable, filter_linear;
 void fragment() {
@@ -357,10 +358,10 @@ void fragment() {
 	COLOR = vec4(clamp(col, vec3(0.0), vec3(1.0)), 1.0);
 }
 """
-	var gm := ShaderMaterial.new()
-	gm.shader = gsh
-	grade.material = gm
-	root.add_child(grade)
+		var gm := ShaderMaterial.new()
+		gm.shader = gsh
+		grade.material = gm
+		root.add_child(grade)
 	vignette = ColorRect.new()
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE

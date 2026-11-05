@@ -21,7 +21,9 @@ func _ready() -> void:
 func apply() -> void:
 	_bus_vol("Music", music_vol)
 	_bus_vol("SFX", sfx_vol)
-	if fullscreen:
+	if OS.has_feature("web"):
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	elif fullscreen:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	else:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
