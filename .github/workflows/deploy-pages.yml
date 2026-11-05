@@ -1,0 +1,99 @@
+name: Deploy Web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: "4.7.2"
+  GODOT_TAG: "4.7.2-stable"
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Godot editor and web templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            .godot-ci
+          key: godot-${{ env.GODOT_TAG }}-web-nothreads
+
+      - name: Install Godot ${{ env.GODOT_TAG }} (headless) and export templates
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p .godot-ci/editor .godot-ci/templates
+          EDITOR_BIN=".godot-ci/editor/Godot_v${GODOT_TAG}_linux.x86_64"
+          if [ ! -x "$EDITOR_BIN" ]; then
+            curl -L --retry 4 --retry-delay 8 -o /tmp/godot-editor.zip \
+              "https://github.com/godotengine/godot-builds/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_linux.x86_64.zip"
+            unzip -o /tmp/godot-editor.zip -d .godot-ci/editor
+            chmod +x "$EDITOR_BIN"
+          fi
+          TEMPLATE_DIR=".godot-ci/templates"
+          if [ ! -f "$TEMPLATE_DIR/web_nothreads_release.zip" ]; then
+            curl -L --retry 4 --retry-delay 8 -o /tmp/godot-templates.tpz \
+              "https://github.com/godotengine/godot-builds/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_export_templates.tpz"
+            unzip -o /tmp/godot-templates.tpz \
+              "templates/version.txt" \
+              "templates/web_nothreads_debug.zip" \
+              "templates/web_nothreads_release.zip" \
+              -d /tmp/godot-templates
+            mv /tmp/godot-templates/templates/* "$TEMPLATE_DIR/"
+          fi
+          cp -f "$TEMPLATE_DIR/"* "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/"
+          "$EDITOR_BIN" --version
+
+      - name: Import project
+        run: |
+          .godot-ci/editor/Godot_v${GODOT_TAG}_linux.x86_64 --headless --path . --import
+
+      - name: Export Web (non-threaded)
+        run: |
+          mkdir -p build/web
+          .godot-ci/editor/Godot_v${GODOT_TAG}_linux.x86_64 --headless --path . --export-release "Web" build/web/index.html
+          test -f build/web/index.html
+          test -f build/web/index.wasm
+          test -f build/web/index.pck
+          touch build/web/.nojekyll
+
+      - name: Setup Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: export
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

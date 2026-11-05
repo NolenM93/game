@@ -56,9 +56,10 @@ func _sky() -> void:
 	e.ambient_light_energy = 1.05
 	e.tonemap_mode = Environment.TONE_MAPPER_ACES
 	e.tonemap_exposure = 1.08
-	e.ssao_enabled = true
-	e.ssao_radius = 1.4
-	e.ssao_intensity = 0.5
+	if RenderingServer.get_current_rendering_method() != "gl_compatibility":
+		e.ssao_enabled = true
+		e.ssao_radius = 1.4
+		e.ssao_intensity = 0.5
 	e.glow_enabled = true
 	e.glow_intensity = 0.42
 	e.glow_bloom = 0.08

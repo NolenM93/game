@@ -5,8 +5,9 @@ export.cfg
 *.tmp
 *.log
 
-# Local engine, zips, and export templates — do not commit
+# Local engine, zips, and export templates. Do not commit.
 tools/
+.godot-ci/
 
 # Exported .exe / .pck (rebuild with Godot)
 build/

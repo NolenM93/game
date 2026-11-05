@@ -6,6 +6,32 @@ var font_body: Font
 var font_emoji: Font
 
 
+func is_web() -> bool:
+	return OS.has_feature("web")
+
+
+func is_compat() -> bool:
+	return RenderingServer.get_current_rendering_method() == "gl_compatibility"
+
+
+func _tex_px(desktop: int) -> int:
+	if is_web():
+		return maxi(128, desktop / 4)
+	return desktop
+
+
+func _compat_mat(m: StandardMaterial3D) -> StandardMaterial3D:
+	if not is_compat():
+		return m
+	m.subsurf_scatter_enabled = false
+	m.clearcoat_enabled = false
+	m.anisotropy_enabled = false
+	m.backlight_enabled = false
+	m.refraction_enabled = false
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	return m
+
+
 func _ready() -> void:
 	# System fonts always render on Windows. Custom files are an upgrade.
 	var body := SystemFont.new()
@@ -260,18 +286,19 @@ func surface(kind: String) -> StandardMaterial3D:
 			m = _wood_pbr(Color("241810"), Color("3A281C"), Color("100C0A"))
 		"leaf":
 			m = _noise_pbr([Color("1E3A1C"), Color("2E5228"), Color("3A6230"), Color("183216")], 0.62, 0.12, 13, 0.72, 0.0, 4.0)
-			m.backlight_enabled = true
-			m.backlight = Color("7CB85A")
-			m.subsurf_scatter_enabled = true
-			m.subsurf_scatter_strength = 0.16
+			if not is_compat():
+				m.backlight_enabled = true
+				m.backlight = Color("7CB85A")
+				m.subsurf_scatter_enabled = true
+				m.subsurf_scatter_strength = 0.16
 		"leather":
 			m = _noise_pbr([Color("3A281C"), Color("4E3824"), Color("624830"), Color("2A1C14")], 1.4, 0.1, 15, 0.55, 0.0, 3.5)
 		"cloth":
 			m = _noise_pbr([Color("2A2C28"), Color("3A3C36"), Color("32342E"), Color("22241E")], 1.6, 0.14, 23, 0.8, 0.0, 2.2)
 		_:
 			m = _noise_pbr([Color("5A5A5A"), Color("7A7A7A")], 0.8, 0.08, 1, 0.75, 0.0, 4.0)
-	_pbr[kind] = m
-	return m
+	_pbr[kind] = _compat_mat(m)
+	return _pbr[kind]
 
 
 func micro_normal() -> Texture2D:
@@ -283,8 +310,9 @@ func micro_normal() -> Texture2D:
 	noise.frequency = 0.085
 	noise.fractal_octaves = 3
 	var ntex := NoiseTexture2D.new()
-	ntex.width = 512
-	ntex.height = 512
+	var px := _tex_px(512)
+	ntex.width = px
+	ntex.height = px
 	ntex.seamless = true
 	ntex.as_normal_map = true
 	ntex.bump_strength = 2.4
@@ -298,10 +326,11 @@ func skin(c: Color, wet: float = 0.0) -> StandardMaterial3D:
 	m.albedo_color = c
 	m.roughness = lerpf(0.62, 0.38, wet)
 	m.metallic = 0.0
-	m.subsurf_scatter_enabled = true
-	m.subsurf_scatter_strength = 0.45
-	m.subsurf_scatter_skin_mode = true
-	return m
+	if not is_compat():
+		m.subsurf_scatter_enabled = true
+		m.subsurf_scatter_strength = 0.45
+		m.subsurf_scatter_skin_mode = true
+	return _compat_mat(m)
 
 
 func glass(c: Color, energy: float = 0.0) -> StandardMaterial3D:
@@ -310,13 +339,14 @@ func glass(c: Color, energy: float = 0.0) -> StandardMaterial3D:
 	m.metallic = 0.15
 	m.roughness = 0.08
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.refraction_enabled = true
-	m.refraction_scale = 0.02
+	if not is_compat():
+		m.refraction_enabled = true
+		m.refraction_scale = 0.02
 	if energy > 0.0:
 		m.emission_enabled = true
 		m.emission = Color(c.r, c.g, c.b)
 		m.emission_energy_multiplier = energy
-	return m
+	return _compat_mat(m)
 
 
 func _noise_pbr(ramp: Array, uv_scale: float, freq: float, seed_v: int, rough: float, metal: float, bump: float) -> StandardMaterial3D:
@@ -328,8 +358,9 @@ func _noise_pbr(ramp: Array, uv_scale: float, freq: float, seed_v: int, rough: f
 	noise.fractal_lacunarity = 2.15
 	noise.fractal_gain = 0.52
 	var tex := NoiseTexture2D.new()
-	tex.width = 1024
-	tex.height = 1024
+	var albedo_px := _tex_px(1024)
+	tex.width = albedo_px
+	tex.height = albedo_px
 	tex.seamless = true
 	tex.noise = noise
 	var grad := Gradient.new()
@@ -339,8 +370,8 @@ func _noise_pbr(ramp: Array, uv_scale: float, freq: float, seed_v: int, rough: f
 		grad.add_point(float(i) / float(ramp.size() - 1), ramp[i])
 	tex.color_ramp = grad
 	var ntex := NoiseTexture2D.new()
-	ntex.width = 1024
-	ntex.height = 1024
+	ntex.width = albedo_px
+	ntex.height = albedo_px
 	ntex.seamless = true
 	ntex.as_normal_map = true
 	ntex.bump_strength = bump
@@ -351,8 +382,9 @@ func _noise_pbr(ramp: Array, uv_scale: float, freq: float, seed_v: int, rough: f
 	rough_noise.frequency = freq * 1.7
 	rough_noise.fractal_octaves = 3
 	var rtex := NoiseTexture2D.new()
-	rtex.width = 512
-	rtex.height = 512
+	var detail_px := _tex_px(512)
+	rtex.width = detail_px
+	rtex.height = detail_px
 	rtex.seamless = true
 	rtex.noise = rough_noise
 	var rgrad := Gradient.new()
@@ -365,8 +397,8 @@ func _noise_pbr(ramp: Array, uv_scale: float, freq: float, seed_v: int, rough: f
 	ao_noise.frequency = freq * 0.45
 	ao_noise.fractal_octaves = 3
 	var atex := NoiseTexture2D.new()
-	atex.width = 512
-	atex.height = 512
+	atex.width = detail_px
+	atex.height = detail_px
 	atex.seamless = true
 	atex.noise = ao_noise
 	var agrad := Gradient.new()
@@ -399,8 +431,8 @@ func _noise_pbr(ramp: Array, uv_scale: float, freq: float, seed_v: int, rough: f
 
 
 func _brick_pbr(dark: Color, light: Color, mortar: Color) -> StandardMaterial3D:
-	var w := 512
-	var h := 512
+	var w := _tex_px(512)
+	var h := w
 	var albedo := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	var height := Image.create(w, h, false, Image.FORMAT_RF)
 	var rough := Image.create(w, h, false, Image.FORMAT_RGBA8)
@@ -449,8 +481,8 @@ func _brick_pbr(dark: Color, light: Color, mortar: Color) -> StandardMaterial3D:
 
 
 func _wood_pbr(a: Color, b: Color, dark: Color) -> StandardMaterial3D:
-	var w := 512
-	var h := 512
+	var w := _tex_px(512)
+	var h := w
 	var albedo := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	var height := Image.create(w, h, false, Image.FORMAT_RF)
 	var rough := Image.create(w, h, false, Image.FORMAT_RGBA8)
